@@ -1,0 +1,10 @@
+{{ define "content" }}
+
+{{ if eq . "about" }}
+  {{ template "about" . }}
+{{ else if eq . "contact" }}
+  {{ template "contact" . }}
+{{ else }}
+  {{ template "chinese_test" . }}
+{{ end }}
+{{ end }}
