@@ -84,9 +84,6 @@ func checkAnswerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	for _, tmpl := range templates.Templates() {
-		fmt.Println(tmpl.Name())
-	}
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
