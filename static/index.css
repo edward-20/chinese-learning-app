@@ -9,9 +9,13 @@ body {
 }
 
 body > div {
-  width: 100ch;
+  width: 520px;
+
 }
 
 .chinese-character {
-  border: 1px black;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  font-size: 100px;
 }
