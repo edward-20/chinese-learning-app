@@ -1,13 +1,14 @@
 <div id="question-and-answer-form">
-  <div class="border border-solid border-black flex flex-col justify-center items-center text-7xl p-8">
+  <div class="flex flex-col justify-center items-center text-7xl p-8">
     {{ .ChineseCharacter  }}
   </div>
-  <form hx-get="api/check-answer" hx-target="#question-and-answer-form">
-    <label for="user-answer">Enter the corresponding pinyin</label>
-    <input name="user-answer" id="user-answer" type="text" class="border border-solid border-rounded border-2 border-black rounded-md block">
-
+  <form hx-get="api/check-answer" hx-target="#question-and-answer-form" class="flex flex-col items-center gap-3">
+    <input name="user-answer" id="user-answer" type="text" class="border border-solid border-1 border-gray-400 p-4 block text-center text-3xl font-semibold">
     <input name="correct-answer" type="hidden" value="{{ .Pinyin }}">
     <input name="chinese-character" type="hidden" value="{{ .ChineseCharacter }}">
-    <button>Submit</button>
+    <button type="submit" class="border border-solid border-gray-400 border-[1px] py-2 px-4 rounded-md">Submit</button>
+
+    <p class="w-full">Tones: 1st flat, 2nd rising, 3rd dip, 4th falling or neutral</p>
+    <p class="w-full">Press space to focus on the input</p>
   </form>
 </div>
