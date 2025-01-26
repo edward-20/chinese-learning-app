@@ -1,0 +1,13 @@
+<div id="question-and-answer-form">
+  <div class="chinese-character">
+    {{ .ChineseCharacter  }}
+  </div>
+  <form hx-get="api/check-answer" hx-target="#question-and-answer-form">
+    <label for="user-answer">Enter the corresponding pinyin</label>
+    <input name="user-answer" id="user-answer" type="text">
+
+    <input name="correct-answer" type="hidden" value="{{ .Pinyin }}">
+    <input name="chinese-character" type="hidden" value="{{ .ChineseCharacter }}">
+    <button>Submit</button>
+  </form>
+</div>

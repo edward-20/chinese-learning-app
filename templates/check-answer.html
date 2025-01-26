@@ -1,0 +1,10 @@
+<div id="answer-result">
+  <p>{{ .ChineseCharacter }}</p>
+  {{ if eq .CorrectPinyinAnswer .UserPinyinAnswer }}
+    <p>Correct: {{ .CorrectPinyinAnswer }} </p>
+  {{ else }}
+    <p>Incorrect: The right answer was {{ .CorrectPinyinAnswer }} </p>
+  {{ end }}
+
+  <button hx-get="/api-chinese-character" hx-target="#answer-result">Next Question</button>
+</div>
