@@ -1,10 +1,10 @@
 <div id="question-and-answer-form">
-  <div class="chinese-character">
+  <div class="border border-solid border-black flex flex-col justify-center items-center text-7xl p-8">
     {{ .ChineseCharacter  }}
   </div>
   <form hx-get="api/check-answer" hx-target="#question-and-answer-form">
     <label for="user-answer">Enter the corresponding pinyin</label>
-    <input name="user-answer" id="user-answer" type="text">
+    <input name="user-answer" id="user-answer" type="text" class="border border-solid border-rounded border-2 border-black rounded-md block">
 
     <input name="correct-answer" type="hidden" value="{{ .Pinyin }}">
     <input name="chinese-character" type="hidden" value="{{ .ChineseCharacter }}">

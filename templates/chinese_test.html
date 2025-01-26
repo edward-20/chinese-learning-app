@@ -1,4 +1,6 @@
 {{ define "chinese_test" }}
-<p>score: 0</p>
-<button hx-get="/api/chinese-character" hx-swap="outerHTML">Start Test</button>
+<div class="p-8 border borders-solid border-black h-[50vh] flex flex-col justify-center" id="test">
+  <p>This test will randomly show you one of 500 chinese characters from HSK 1.  You must input the correct pinyin corresponding to it.</p>
+  <button class="border rounded-md border-solid p-2 mt-3" hx-get="/api/chinese-character" hx-target="#test" hx-swap="">Start Test</button>
+</div>
 {{ end }}
