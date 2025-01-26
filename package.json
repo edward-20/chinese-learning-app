@@ -1,0 +1,24 @@
+{
+  "name": "chinese-learning-app",
+  "version": "1.0.0",
+  "description": "1. Keeps track of a user's score based on their browsing session  2. Input matches on pinyin word and tone and breaks up the text based on that (preventing invalid input) 3. Chinese word is shown larger 4. Should be easy to navigate the test using just the keyboard (enter to form submit, enter for next question) 5. Set the number of questions you want to answer 6. Get a review at the end",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edward-20/chinese-learning-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/edward-20/chinese-learning-app/issues"
+  },
+  "homepage": "https://github.com/edward-20/chinese-learning-app#readme",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "tailwindcss": "^4.0.0"
+  }
+}
