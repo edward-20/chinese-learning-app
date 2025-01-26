@@ -90,10 +90,12 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
+	// pages
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/about", aboutHandler)
 	http.HandleFunc("/contact", contactHandler)
 
+	// partial pages
 	http.HandleFunc("/api/chinese-character", chineseCharactersHandler)
 	http.HandleFunc("/api/check-answer", checkAnswerHandler)
 
