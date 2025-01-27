@@ -12,22 +12,8 @@
   </form>
     <div class="absolute bottom-4 left-4 text-sm">
       <p class="w-full">* Tones: 1st ā, 2nd á, 3rd ǎ, 4th à or neutral</p>
-      <p class="w-full">* Press space to focus on the input. Press enter to submit.</p>
     </div>
+  <script>
+    document.querySelector("#user-answer").focus();
+  </script>
 </div>
-<script>
-  const userInput = document.querySelector("#user-answer");
-  document.addEventListener('keydown', (event) => {
-    // if it's already focused
-    if (event.shiftKey) {
-      if (userInput === document.activeElement) {
-        event.preventDefault();
-      } else {
-        userInput.focus();
-        const val = userInput.value;
-        userInput.value = '';
-        userInput.value = val;
-      }
-    }
-  });
-</script>
