@@ -8,11 +8,11 @@
   <script src="https://unpkg.com/htmx.org@2.0.4"></script>
 </head>
 <body class="p-20 flex flex-col items-center h-screen">
-  <div class="w-[70ch] h-full flex flex-col justify-between">
+  <div class="w-[70ch] h-full gap-4 flex flex-col justify-between">
     <header>
       {{ template "header" . }}
     </header>
-    <main>
+    <main class="grow-1">
       {{ template "content" . }}
     </main>
     <footer>

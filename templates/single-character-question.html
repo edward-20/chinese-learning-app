@@ -1,14 +1,33 @@
-<div id="question-and-answer-form">
+<div id="question-and-answer-form" style="box-shadow: 0 2px 2px rgba(0,0,0,.3);" class="border border-gray-100 border-2 rounded-md h-full flex flex-col justify-center relative">
   <div class="flex flex-col justify-center items-center text-7xl p-8">
     {{ .ChineseCharacter  }}
   </div>
-  <form hx-get="api/check-answer" hx-target="#question-and-answer-form" class="flex flex-col items-center gap-3">
-    <input name="user-answer" id="user-answer" type="text" class="border border-solid border-1 border-gray-400 p-4 block text-center text-3xl font-semibold">
-    <input name="correct-answer" type="hidden" value="{{ .Pinyin }}">
-    <input name="chinese-character" type="hidden" value="{{ .ChineseCharacter }}">
-    <button type="submit" class="border border-solid border-gray-400 border-[1px] py-2 px-4 rounded-md">Submit</button>
-
-    <p class="w-full">Tones: 1st flat, 2nd rising, 3rd dip, 4th falling or neutral</p>
-    <p class="w-full">Press space to focus on the input</p>
+  <form hx-get="api/check-answer" hx-target="#question-and-answer-form" hx-swap="outerHTML" class="flex flex-col items-center gap-3">
+    <div class="grow-1 flex flex-col items-center gap-4">
+      <input name="user-answer" id="user-answer" type="text" class="border border-solid border-1 border-gray-400 p-4 block text-center text-3xl font-semibold">
+      <input name="correct-answer" type="hidden" value="{{ .Pinyin }}">
+      <input name="chinese-character" type="hidden" value="{{ .ChineseCharacter }}">
+      <button type="submit" class="bg-sky-100 border border-solid border-gray-400 border-[1px] py-2 px-4 rounded-md">Submit</button>
+    </div>
   </form>
+    <div class="absolute bottom-4 left-4 text-sm">
+      <p class="w-full">* Tones: 1st ā, 2nd á, 3rd ǎ, 4th à or neutral</p>
+      <p class="w-full">* Press space to focus on the input. Press enter to submit.</p>
+    </div>
 </div>
+<script>
+  const userInput = document.querySelector("#user-answer");
+  document.addEventListener('keydown', (event) => {
+    // if it's already focused
+    if (event.shiftKey) {
+      if (userInput === document.activeElement) {
+        event.preventDefault();
+      } else {
+        userInput.focus();
+        const val = userInput.value;
+        userInput.value = '';
+        userInput.value = val;
+      }
+    }
+  });
+</script>

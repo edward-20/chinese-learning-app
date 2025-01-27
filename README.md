@@ -4,12 +4,18 @@
 [ ] Set the number of questions you want to answer
 [ ] Get a review at the end
 
+## Dev Experience
 [x] For dev experience, enable hot reloading
 [x] Use tailwindcss
+
+## Visual and UX
 [ ] Input matches on pinyin word and tone and breaks up the text based on that (preventing invalid input)
 [x] Chinese word is shown larger
 [ ] Should be easy to navigate the test using just the keyboard (enter to form submit, enter for next question)
 [ ] Mobile Responsive
+
+## Optimisation
+[ ] Change `hx-swap`s so that DOM insertion is minimal and utilise parent components with styles in order to DRY style applications
 
 # Stack
 HTMX and Go
