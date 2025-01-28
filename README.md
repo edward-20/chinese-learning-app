@@ -9,7 +9,6 @@
 [x] Use tailwindcss
 
 ## Visual and UX
-[ ] Input matches on pinyin word and tone and breaks up the text based on that (preventing invalid input)
 [x] Chinese word is shown larger
 [x] Should be easy to navigate the test using just the keyboard (enter to form submit, enter for next question)
 [x] Mobile Responsive
