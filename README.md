@@ -11,8 +11,8 @@
 ## Visual and UX
 [ ] Input matches on pinyin word and tone and breaks up the text based on that (preventing invalid input)
 [x] Chinese word is shown larger
-[ ] Should be easy to navigate the test using just the keyboard (enter to form submit, enter for next question)
-[ ] Mobile Responsive
+[x] Should be easy to navigate the test using just the keyboard (enter to form submit, enter for next question)
+[x] Mobile Responsive
 
 ## Optimisation
 [ ] Change `hx-swap`s so that DOM insertion is minimal and utilise parent components with styles in order to DRY style applications
