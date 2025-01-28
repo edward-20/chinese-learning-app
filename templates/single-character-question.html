@@ -20,28 +20,33 @@
       // focus
       input.focus();
 
+      let timeout;
       // check the regex of the user's input pinyin
       input.addEventListener('input', function(){
-        const inputValue = input.value;
-        const pattern = /^([a-z]+[1-4]?\s)*([a-z]+[1-4]?)$/;
-        // invalid input
-        if (!pattern.test(inputValue)) {
-          // if the warning doesn't exist
-          if (!document.getElementById("invalid-pinyin")) {
-            const warning = document.createElement('p');
-            warning.textContent = "Your input is not valid pinyin.";
-            warning.className = "text-red-300";
-            warning.id = "invalid-pinyin";
-            input.insertAdjacentElement('afterend', warning);
+        clearTimeout(timeout);
+
+        timeout = setTimeout(() => {
+          const inputValue = input.value;
+          const pattern = /^([a-z]+[1-4]?\s)*([a-z]+[1-4]?)$/;
+          // invalid input
+          if (!pattern.test(inputValue)) {
+            // if the warning doesn't exist
+            if (!document.getElementById("invalid-pinyin")) {
+              const warning = document.createElement('p');
+              warning.textContent = "Your input is not valid pinyin.";
+              warning.className = "text-red-300";
+              warning.id = "invalid-pinyin";
+              input.insertAdjacentElement('afterend', warning);
+            }
+          // valid input
+          } else {
+            const warning = document.getElementById("invalid-pinyin");
+            // if the warning exists
+            if (warning) {
+              warning.remove();
+            }
           }
-        // valid input
-        } else {
-          const warning = document.getElementById("invalid-pinyin");
-          // if the warning exists
-          if (warning) {
-            warning.remove();
-          }
-        }
+        }, 500)
       })
     })()
   </script>
