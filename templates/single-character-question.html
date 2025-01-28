@@ -5,6 +5,7 @@
   <form hx-get="api/check-answer" hx-target="#question-and-answer-form" hx-swap="outerHTML" class="flex flex-col items-center gap-3">
     <div class="grow-1 flex flex-col items-center gap-4">
       <input name="user-answer" id="user-answer" type="text" class="border border-solid border-1 border-gray-400 p-4 block text-center text-3xl font-semibold w-full">
+
       <input name="correct-answer" type="hidden" value="{{ .Pinyin }}">
       <input name="chinese-character" type="hidden" value="{{ .ChineseCharacter }}">
       <button type="submit" class="bg-sky-100 border border-solid border-gray-400 border-[1px] py-2 px-4 rounded-md">Submit</button>
@@ -14,6 +15,34 @@
       <p class="w-full">* Tones: 1st ā, 2nd á, 3rd ǎ, 4th à or neutral</p>
     </div>
   <script>
-    document.querySelector("#user-answer").focus();
+    (function(){
+      const input = document.getElementById("user-answer");
+      // focus
+      input.focus();
+
+      // check the regex of the user's input pinyin
+      input.addEventListener('input', function(){
+        const inputValue = input.value;
+        const pattern = /^([a-z]+[1-4]?\s)*([a-z]+[1-4]?)$/;
+        // invalid input
+        if (!pattern.test(inputValue)) {
+          // if the warning doesn't exist
+          if (!document.getElementById("invalid-pinyin")) {
+            const warning = document.createElement('p');
+            warning.textContent = "Your input is not valid pinyin.";
+            warning.className = "text-red-300";
+            warning.id = "invalid-pinyin";
+            input.insertAdjacentElement('afterend', warning);
+          }
+        // valid input
+        } else {
+          const warning = document.getElementById("invalid-pinyin");
+          // if the warning exists
+          if (warning) {
+            warning.remove();
+          }
+        }
+      })
+    })()
   </script>
 </div>
