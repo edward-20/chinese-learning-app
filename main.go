@@ -1,10 +1,15 @@
 package main
 
 import (
+	cryptorand "crypto"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"html/template"
 	"math/rand"
 	"net/http"
+	"sync"
+	"time"
 )
 
 type Word struct {
@@ -32,14 +37,16 @@ var dictionary = []Word{
 	{ChineseCharacter: "帮", Pinyin: "bang1"},
 }
 
-type Method int
+type User struct {
+	sessionId string
+	score     int
+	outOf     int
+}
 
-const (
-	GET   Method = 0
-	PUT   Method = 1
-	POST  Method = 2
-	PATCH Method = 3
-)
+// map sessionIDs to session relevant data
+var userSessions = make(map[string]any)
+
+var userMutex sync.RWMutex
 
 var templates = template.Must(template.ParseGlob("templates/*.html"))
 
@@ -51,7 +58,47 @@ func renderTemplate(w http.ResponseWriter, tmpl string, data any) {
 	}
 }
 
+/* Session Management */
+func generateSessionID() (string, error) {
+	b := make([]byte, 16) // 16 bytes = 128 bits
+	_, err := cryptorand.Read(b)
+	if err != nil {
+		return "", errors.New("Error generating session ID:")
+	}
+	return hex.EncodeToString(b), nil
+}
+
+func addUserSession(sessionId string) {
+	defer userMutex.Unlock()
+
+	userMutex.Lock()
+	userSessions[sessionId] = User{
+		sessionId: sessionId,
+	}
+}
+
+func setSessionCookie(w http.ResponseWriter, sessionID string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_id",
+		Value:    sessionID,
+		Path:     "/",
+		HttpOnly: true,                                             // To prevent access from JavaScript
+		Secure:   false,                                            // Should be true if using HTTPS
+		Expires:  time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC), // Far future date
+		SameSite: http.SameSiteStrictMode,
+	})
+}
+
 func homeHandler(w http.ResponseWriter, r *http.Request) {
+	_, err := r.Cookie("session_id")
+	if err != nil {
+		sessionID, err := generateSessionID()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		addUserSession(sessionID)
+		setSessionCookie(w, sessionID)
+	}
 	renderTemplate(w, "base.html", nil)
 }
 
