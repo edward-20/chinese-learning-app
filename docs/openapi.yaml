@@ -1,0 +1,313 @@
+openapi: 3.0.0
+info:
+  title: Chinese Learning App API
+  version: 1.0.0
+  contact:
+    name: Edward Lim
+    email: ed.lim199@gmail.com
+paths:
+  /home:
+    get:
+      summary: Get the home page
+      description: Get the home page with either a way to start the test or resume it based on the user's browsing session
+      parameters:
+        - $ref: "#/components/parameters/Session"
+      responses:
+        '200':
+          $ref: '#/components/responses/SuccessfulPageLoad'
+        '500':
+          $ref: "#/components/responses/UnsuccessfulPageLoad"
+  /about:
+    get:
+      summary: Get the about page
+      responses:
+        '200':
+          $ref: "#/components/responses/SuccessfulPageLoad"
+        '500':
+          $ref: "#/components/responses/UnsuccessfulPageLoad"
+  /contact:
+    get:
+      summary: Get the contact page
+      responses:
+        '200':
+          $ref: "#/components/responses/SuccessfulPageLoad"
+        '500':
+          $ref: "#/components/responses/UnsuccessfulPageLoad"
+  /tests:
+    parameters:
+      - $ref: "#/components/parameters/Session"
+    post:
+      summary: Create a test for the user
+      responses:
+        '201':
+          description: Successfully created test
+          content:
+            text/html:
+              schema:
+                type: string
+              example: | 
+                <div id="test-creation-status">
+                  <h1>Created your test</h1>
+                  <button hx-get"questions/1309" hx-target="test-creation-status">Start your test</div>
+                </div>
+        '405':
+          description: Not allowed to make another test
+          content:
+            text/html:
+              schema:
+                type: string
+              example: | 
+                <div id="test-status">
+                  <h1>You are not allowed to make another test</h1>
+                  <button hx-get"/tests/1" hx-target="test-status">Resume your current test?</button>
+                  <button hx-delete"/tests/1" hx-target="test-status">Delete your current test?</button>
+                </div>
+        '500':
+          description: Internal Server Error
+          content:
+            text/html:
+              schema:
+                type: string
+              example: | 
+                <div id="test-status">
+                  <h1>An error occurred whilst trying to create your test.</h1>
+                  <input name="number-of-questions"></input>
+                  <button hx-post"/tests" hx-target="test-status">Retry creating test?</button>
+                </div>
+    get:
+      summary: Default to getting the test for the current user
+      responses:
+        '200':
+          $ref: "#/components/responses/SuccesfullyGotTest"
+        '404':
+          $ref: "#/components/responses/TestNotFound"
+    delete:
+      summary: Default to deleting the current user's test
+      responses:
+        '200':
+          $ref: "#/components/responses/SuccesfullyDeletedTest"
+        '404':
+          $ref: "#/components/responses/TestNotFound"
+  /tests/{testID}:
+    parameters:
+      - $ref: "#/components/parameters/Session"
+      - name: testID
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get the test corresponding to this testID
+      parameters:
+        - $ref: "#/components/parameters/Session"
+      responses:
+        '404':
+          $ref: "#/components/responses/TestNotFound"
+        '403':
+          $ref: "#/components/responses/ForbiddenWriteToTest"
+    delete:
+      summary: Deleting the test corresponding to this testID
+      responses:
+        '200':
+          $ref: "#/components/responses/SuccesfullyDeletedTest"
+        '404':
+          $ref: "#/components/responses/TestNotFound"
+        '403':
+          $ref: "#/components/responses/ForbiddenWriteToTest"
+  /question/{questionID}:
+    parameters:
+      - name: questionID
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      summary: Get the question corresponding to questionID
+      responses:
+        '200':
+          description: Successfully got question
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <div>
+                  Question 1 out of 5. 愛 What is this word in pinyin?
+                  <form hx-post"/feedback">
+                    <input></input>
+                    <button type="submit">
+                  </form>
+                </div>
+        '404':
+          description: The question doesn't exist
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <div>
+                  Question Not found
+                  <button hx-get="/tests">Go to your current question.</button>
+                </div>
+  /feedback:
+    summary: Get the feedback for a question
+    parameters:
+      - $ref: "#/components/parameters/Session"
+
+    post:
+      parameters:
+        - name: questionID
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "3209ss"
+        - name: userAnswer
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "hua4"
+      responses:
+        '201':
+          description: Succesfully saved the user's response to question
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <div id="feedback">
+                  You were correct.
+                  <button hx-get="/question/094" hx-target="feedback">Go to next question</buton>
+                </div>
+        '404':
+          description: QuestionID not found
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <div hx-get="/tests">
+                  Question was not found. Go back to test?
+                </div>
+        '500':
+          description: Internal Server Error when attempting to save user's response to question
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <div hx-get="/tests">
+                  Internal Server Error. Go back to test?
+                </div>
+  /test-results:
+    summary: Results of a user's last test
+    parameters:
+      - $ref: "#/components/parameters/Session"
+    get:
+      responses:
+        '200':
+          description: Successfully got test results
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <div id="test-results">
+                  50 / 60
+                  <button hx-delete="/tests/024" hx-target="feedback">Reset?</buton>
+                </div>
+        '404':
+          description: Test was not found
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <div hx-get="/tests">
+                  Test was not found. Go back to test?
+                </div>
+        '500':
+          description: Internal Server Error when attempting to save user's response to question
+          content:
+            text/html:
+              schema:
+                type: string
+              example: |
+                <div hx-get="/tests">
+                  Internal Server Error. Go back to test?
+                </div>
+
+
+
+components:
+  parameters:
+    Session: 
+      in: cookie
+      name: session_id
+      required: false
+      schema:
+        type: string
+      example: "session_id=abc123"
+  responses:
+    SuccessfulPageLoad:
+      description: Successful Page Load
+      content:
+        text/html:
+          schema:
+            type: string
+          example: "<!DOCTYPE html><html lang=\"en\"><head><title>Full Page</title></head><body>Content</body></html>"
+    UnsuccessfulPageLoad:
+      description: Unsuccessful Page Load
+      content:
+        text/html:
+          schema:
+            type: string
+          example: "<!DOCTYPE html><html lang=\"en\"><head><title>500 Internal Server Error</title></head><body>Content</body></html>"
+
+    TestNotFound:
+      description: Current user doesn't have a test
+      content:
+        text/html:
+          schema:
+            type: string
+          example: |
+            <div id="test-status">
+              <button hx-post"/tests">Create a new test?</button>
+            </div>
+    SuccesfullyGotTest:
+      description: Current test for user
+      content:
+        text/html:
+          schema:
+            type: string
+          example: <div>Can be either their current question, feedback for their last answer or feedback for the whole test</div>
+    SuccesfullyDeletedTest:
+      description: Successfully deleted the current user's test
+      content:
+        text/html:
+          schema:
+            type: string
+          example: |
+            <div id="test-status">
+              <button hx-post"/tests">Create a new test?</button>
+            </div>
+    ForbiddenWriteToTest:
+      description: Forbiden write to test
+      content:
+        text/html:
+          schema:
+            type: string
+          example: |
+            <div id="forbidden-access">
+              You are accessing a test that is not your own.
+              <button hx-get="tests/1230u" hx-target="forbidden-access"></button>
+            </div>
+
+  schemas:
+    SuccessfulPartialPageLoad:
+        type: string
+        example: "<body>hello</body>"
+    UnsuccessfulPartialPageLoad:
+        type: string
+        example: "<body>500 Internal Server Error</body>"
