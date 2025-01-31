@@ -1,13 +1,14 @@
 package main
 
 import (
-	cryptorand "crypto"
+	cryptorand "crypto/rand"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -38,13 +39,12 @@ var dictionary = []Word{
 }
 
 type User struct {
-	sessionId string
-	score     int
-	outOf     int
+	score int
+	outOf int
 }
 
 // map sessionIDs to session relevant data
-var userSessions = make(map[string]any)
+var userSessions = make(map[string]User)
 
 var userMutex sync.RWMutex
 
@@ -72,9 +72,6 @@ func addUserSession(sessionId string) {
 	defer userMutex.Unlock()
 
 	userMutex.Lock()
-	userSessions[sessionId] = User{
-		sessionId: sessionId,
-	}
 }
 
 func setSessionCookie(w http.ResponseWriter, sessionID string) {
@@ -112,11 +109,25 @@ func contactHandler(w http.ResponseWriter, r *http.Request) {
 
 func chineseCharactersHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
-	case http.MethodGet:
-		// get a random word from the dictionary
-		v := rand.Intn(len(dictionary))
-		randomWord := dictionary[v]
-		renderTemplate(w, "single-character-question.html", randomWord)
+	case http.MethodPost:
+		numberOfQuestions, err := strconv.Atoi(r.URL.Query().Get("number-of-questions"))
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		} else if numberOfQuestions <= 0 {
+			http.Error(w, "The number of questions must be greater than 0.", http.StatusBadRequest)
+		} else {
+			currentUserSession := r.Header.Get("session_id")
+			userMutex.Lock()
+			currentUser := userSessions[currentUserSession]
+			currentUser.outOf = numberOfQuestions
+			userMutex.Unlock()
+
+			v := rand.Intn(len(dictionary))
+			randomWord := dictionary[v]
+
+			renderTemplate(w, "single-character-question.html", randomWord)
+		}
 	}
 }
 
@@ -139,7 +150,6 @@ func main() {
 	http.HandleFunc("/about", aboutHandler)
 	http.HandleFunc("/contact", contactHandler)
 
-	// partial pages
 	http.HandleFunc("/api/chinese-character", chineseCharactersHandler)
 	http.HandleFunc("/api/check-answer", checkAnswerHandler)
 
