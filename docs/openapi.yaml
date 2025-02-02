@@ -36,6 +36,10 @@ paths:
   /tests:
     parameters:
       - $ref: "#/components/parameters/Session"
+      - name: "number-of-questions"
+        in: query
+        required: true
+        example: 50
     post:
       summary: Create a test for the user
       responses:
