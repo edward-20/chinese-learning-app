@@ -2,51 +2,17 @@ package main
 
 import (
 	cryptorand "crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"math/rand"
 	"net/http"
 	"strconv"
-	"sync"
 	"time"
 )
-
-type Word struct {
-	ChineseCharacter string `json:"chineseCharacter"`
-	Pinyin           string `json:"pinyin"`
-}
-
-type QuestionAndAnswer struct {
-	ChineseCharacter    string `json:"chineseCharacter`
-	CorrectPinyinAnswer string `json:"correctPinyinAnswer`
-	UserPinyinAnswer    string `json:"userPinyinAnswer`
-}
-
-var dictionary = []Word{
-	{ChineseCharacter: "爱 ", Pinyin: "ai4"},
-	{ChineseCharacter: "爱好", Pinyin: "ai4 hao4"},
-	{ChineseCharacter: "吧", Pinyin: "ba"},
-	{ChineseCharacter: "爸爸", Pinyin: "bai2"},
-	{ChineseCharacter: "白", Pinyin: "bai3"},
-	{ChineseCharacter: "白天", Pinyin: "bai2 tian1"},
-	{ChineseCharacter: "班", Pinyin: "ban1"},
-	{ChineseCharacter: "半", Pinyin: "ban4"},
-	{ChineseCharacter: "半年", Pinyin: "ban4 nian2"},
-	{ChineseCharacter: "半天", Pinyin: "ban4 tian1"},
-	{ChineseCharacter: "帮", Pinyin: "bang1"},
-}
-
-type User struct {
-	score int
-	outOf int
-}
-
-// map sessionIDs to session relevant data
-var userSessions = make(map[string]User)
-
-var userMutex sync.RWMutex
 
 var templates = template.Must(template.ParseGlob("templates/*.html"))
 
@@ -142,6 +108,13 @@ func checkAnswerHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	db, err := sql.Open("sqlite3", "./db/chinese-learning-database.db")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
