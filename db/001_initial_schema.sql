@@ -1,5 +1,5 @@
 CREATE TABLE Users (
-  sessionID TEXT PRIMARY KEY,
+  sessionID TEXT PRIMARY KEY
 );
 
 CREATE TABLE Tests (
@@ -10,7 +10,7 @@ CREATE TABLE Tests (
   CHECK (totalNumberOfQuestions >= 1),
   CHECK (totalNumberOfQuestions <= 500),
   CHECK (currentQuestion <= totalNumberOfQuestions),
-  CHECK (currentQuestion >= 1),
+  CHECK (currentQuestion >= 1)
 );
 
 CREATE TABLE Words (
