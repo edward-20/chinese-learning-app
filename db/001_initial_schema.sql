@@ -24,14 +24,14 @@ CREATE INDEX idx_word_pinyin on Words(pinyin);
 CREATE TABLE Questions (
   wordID INTEGER,
   testID INTEGER,
-  questionNumber INTEGER,
+  questionNumber INTEGER NOT NULL,
   usersAnswer TEXT,
   FOREIGN KEY (wordID) REFERENCES Words(id) ON DELETE RESTRICT,
   FOREIGN KEY (testID) REFERENCES Tests(userSessionID) ON DELETE CASCADE,
   PRIMARY KEY(testID, questionNumber)
 );
 
--- ensure that questions are within the bounds of the total number of questions prescribed
+-- ensure that when creating a question, the question number is within the bounds of the total number of questions prescribed
 CREATE TRIGGER check_question_number 
 BEFORE INSERT ON Questions
 FOR EACH ROW
