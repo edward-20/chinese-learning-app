@@ -8,13 +8,16 @@ import (
 	"fmt"
 	"html/template"
 	"log"
-	"math/rand"
 	"net/http"
-	"strconv"
+	"sync"
 	"time"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 var templates = template.Must(template.ParseGlob("templates/*.html"))
+var db, dbConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db")
+var dbMutex sync.RWMutex
 
 func renderTemplate(w http.ResponseWriter, tmpl string, data any) {
 	w.Header().Set("Content-Type", "text/html")
@@ -34,10 +37,11 @@ func generateSessionID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func addUserSession(sessionId string) {
-	defer userMutex.Unlock()
-
-	userMutex.Lock()
+func addUserSession(sessionId string) error {
+	dbMutex.Lock()
+	_, err := db.Exec("INSERT INTO Users (sessionID) VALUES (?)", sessionId)
+	dbMutex.Unlock()
+	return err
 }
 
 func setSessionCookie(w http.ResponseWriter, sessionID string) {
@@ -53,13 +57,17 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	_, err := r.Cookie("session_id")
-	if err != nil {
-		sessionID, err := generateSessionID()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+	_, getCookieError := r.Cookie("session_id")
+	if getCookieError != nil {
+		sessionID, randomGenerationError := generateSessionID()
+		if randomGenerationError != nil {
+			http.Error(w, randomGenerationError.Error(), http.StatusInternalServerError)
 		}
-		addUserSession(sessionID)
+		err := addUserSession(sessionID)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 		setSessionCookie(w, sessionID)
 	}
 	renderTemplate(w, "base.html", nil)
@@ -73,45 +81,44 @@ func contactHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, "base.html", "contact")
 }
 
-func chineseCharactersHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		numberOfQuestions, err := strconv.Atoi(r.URL.Query().Get("number-of-questions"))
+/*
+	func chineseCharactersHandler(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPost:
+			numberOfQuestions, err := strconv.Atoi(r.URL.Query().Get("number-of-questions"))
 
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else if numberOfQuestions <= 0 {
-			http.Error(w, "The number of questions must be greater than 0.", http.StatusBadRequest)
-		} else {
-			currentUserSession := r.Header.Get("session_id")
-			userMutex.Lock()
-			currentUser := userSessions[currentUserSession]
-			currentUser.outOf = numberOfQuestions
-			userMutex.Unlock()
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			} else if numberOfQuestions <= 0 {
+				http.Error(w, "The number of questions must be greater than 0.", http.StatusBadRequest)
+			} else {
+				currentUserSession := r.Header.Get("session_id")
+				userMutex.Lock()
+				currentUser := userSessions[currentUserSession]
+				currentUser.outOf = numberOfQuestions
+				userMutex.Unlock()
 
-			v := rand.Intn(len(dictionary))
-			randomWord := dictionary[v]
+				v := rand.Intn(len(dictionary))
+				randomWord := dictionary[v]
 
-			renderTemplate(w, "single-character-question.html", randomWord)
+				renderTemplate(w, "single-character-question.html", randomWord)
+			}
 		}
 	}
-}
 
-func checkAnswerHandler(w http.ResponseWriter, r *http.Request) {
-	// check the body of the request to see if the pinyin matches the character
-	valuesSent := r.URL.Query()
-	userAnswer := valuesSent.Get("user-answer")
-	correctAnswer := valuesSent.Get("correct-answer")
-	chineseCharacter := valuesSent.Get("chinese-character")
+	func checkAnswerHandler(w http.ResponseWriter, r *http.Request) {
+		// check the body of the request to see if the pinyin matches the character
+		valuesSent := r.URL.Query()
+		userAnswer := valuesSent.Get("user-answer")
+		correctAnswer := valuesSent.Get("correct-answer")
+		chineseCharacter := valuesSent.Get("chinese-character")
 
-	renderTemplate(w, "check-answer.html", QuestionAndAnswer{ChineseCharacter: chineseCharacter, CorrectPinyinAnswer: correctAnswer, UserPinyinAnswer: userAnswer})
-}
-
+		renderTemplate(w, "check-answer.html", QuestionAndAnswer{ChineseCharacter: chineseCharacter, CorrectPinyinAnswer: correctAnswer, UserPinyinAnswer: userAnswer})
+	}
+*/
 func main() {
-	db, err := sql.Open("sqlite3", "./db/chinese-learning-database.db")
-
-	if err != nil {
-		log.Fatal(err)
+	if dbConnectionErr != nil {
+		log.Fatal(dbConnectionErr)
 	}
 	defer db.Close()
 
@@ -122,9 +129,6 @@ func main() {
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/about", aboutHandler)
 	http.HandleFunc("/contact", contactHandler)
-
-	http.HandleFunc("/api/chinese-character", chineseCharactersHandler)
-	http.HandleFunc("/api/check-answer", checkAnswerHandler)
 
 	fmt.Println("Starting server on :8080...")
 	http.ListenAndServe(":8080", nil)
