@@ -17,7 +17,8 @@ import (
 
 var aboutTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/about.html"))
 var contactTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/contact.html"))
-var chineseTestTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/chinese_test.html"))
+var startTestTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/test-start.html"))
+var resumeTestTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/test-resume.html"))
 var db, dbConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db")
 var dbMutex sync.RWMutex
 
@@ -59,8 +60,9 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
-	_, getCookieError := r.Cookie("session_id")
+	sessionCookie, getCookieError := r.Cookie("session_id")
 
+	// the user has not visited the site before
 	if getCookieError != nil {
 		sessionID, randomGenerationError := generateSessionID()
 		if randomGenerationError != nil {
@@ -74,11 +76,33 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		setSessionCookie(w, sessionID)
 		// new user session
-		renderTemplate(w, chineseTestTemplate, nil)
+		renderTemplate(w, startTestTemplate, nil)
 		return
 	}
-	// returning user session
-	renderTemplate(w, chineseTestTemplate, nil)
+
+	// the user has visited the site before
+	sessionID := sessionCookie.Value
+	// find their row in users
+	var isUserRegistered sql.NullBool
+	db.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = \"?\")", sessionID).Scan(&isUserRegistered)
+	// and if they don't have a row in users insert one
+	if !isUserRegistered.Valid {
+		_, err := db.Exec("INSERT INTO Users (sessionID) VALUES (?)", sessionID)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+	}
+
+	// determine if they have a test
+	var currentQuestion sql.NullInt16
+	noTestError := db.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = ?", sessionID).Scan(&currentQuestion)
+	// if they have no test
+	if noTestError == sql.ErrNoRows {
+		renderTemplate(w, startTestTemplate, nil)
+		return
+	}
+	renderTemplate(w, resumeTestTemplate, currentQuestion.Value)
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
@@ -89,41 +113,6 @@ func contactHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, contactTemplate, nil)
 }
 
-/*
-	func chineseCharactersHandler(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodPost:
-			numberOfQuestions, err := strconv.Atoi(r.URL.Query().Get("number-of-questions"))
-
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			} else if numberOfQuestions <= 0 {
-				http.Error(w, "The number of questions must be greater than 0.", http.StatusBadRequest)
-			} else {
-				currentUserSession := r.Header.Get("session_id")
-				userMutex.Lock()
-				currentUser := userSessions[currentUserSession]
-				currentUser.outOf = numberOfQuestions
-				userMutex.Unlock()
-
-				v := rand.Intn(len(dictionary))
-				randomWord := dictionary[v]
-
-				renderTemplate(w, "single-character-question.html", randomWord)
-			}
-		}
-	}
-
-	func checkAnswerHandler(w http.ResponseWriter, r *http.Request) {
-		// check the body of the request to see if the pinyin matches the character
-		valuesSent := r.URL.Query()
-		userAnswer := valuesSent.Get("user-answer")
-		correctAnswer := valuesSent.Get("correct-answer")
-		chineseCharacter := valuesSent.Get("chinese-character")
-
-		renderTemplate(w, "check-answer.html", QuestionAndAnswer{ChineseCharacter: chineseCharacter, CorrectPinyinAnswer: correctAnswer, UserPinyinAnswer: userAnswer})
-	}
-*/
 func main() {
 	if dbConnectionErr != nil {
 		log.Fatal(dbConnectionErr)
