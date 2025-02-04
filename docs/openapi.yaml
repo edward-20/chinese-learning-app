@@ -39,6 +39,8 @@ paths:
       - name: "number-of-questions"
         in: query
         required: true
+        schema:
+          type: integer
         example: 50
     post:
       summary: Create a test for the user
