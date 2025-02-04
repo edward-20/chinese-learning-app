@@ -59,6 +59,22 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 	})
 }
 
+func isUserRegisteredInDatabase(sessionID string) bool {
+	var isUserRegistered sql.NullBool
+	db.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = \"?\")", sessionID).Scan(&isUserRegistered)
+	return isUserRegistered.Valid
+}
+
+func doesUserHaveTest(sessionID string) bool{
+	// determine if they have a test
+	var currentQuestion sql.NullInt16
+	noTestError := db.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = \"?\"", sessionID).Scan(&currentQuestion)
+	if noTestError != nil {
+		return false
+	}
+	return true
+}
+
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	sessionCookie, getCookieError := r.Cookie("session_id")
 
@@ -82,11 +98,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 
 	// the user has visited the site before
 	sessionID := sessionCookie.Value
-	// find their row in users
-	var isUserRegistered sql.NullBool
-	db.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = \"?\")", sessionID).Scan(&isUserRegistered)
-	// and if they don't have a row in users insert one
-	if !isUserRegistered.Valid {
+	if !isUserRegisteredInDatabase(sessionID) {
 		_, err := db.Exec("INSERT INTO Users (sessionID) VALUES (?)", sessionID)
 		if err != nil {
 			http.Error(w, err.Error(), 500)
@@ -95,10 +107,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// determine if they have a test
-	var currentQuestion sql.NullInt16
-	noTestError := db.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = ?", sessionID).Scan(&currentQuestion)
-	// if they have no test
-	if noTestError == sql.ErrNoRows {
+	if !doesUserHaveTest(sessionID) {
 		renderTemplate(w, startTestTemplate, nil)
 		return
 	}
@@ -113,6 +122,34 @@ func contactHandler(w http.ResponseWriter, r *http.Request) {
 	renderTemplate(w, contactTemplate, nil)
 }
 
+func testsHandler(w http.ResponseWriter, r *http.Request) {
+	// is there a session cookie
+	sessionCookie, getCookieError := r.Cookie("session_id")
+	if getCookieError != nil {
+		http.Error(w, "Invalid Request to /tests, provide sessionID cookie", http.StatusBadRequest)
+		return
+	}
+	sessionID := sessionCookie.Value
+
+	if sessionID
+	switch r.Method {
+	case http.MethodPost:
+		numQuestionsWanted := r.URL.Query().Get("number-of-questions")
+		if numQuestionsWanted == "" {
+			http.Error(w, "Invalid Request to POST /tests, provide number of questions as query", http.StatusBadRequest)
+			return
+		}
+
+		/*
+			Summary: create a test and give back html
+			Preconditions:
+				* test must not exist (405)
+		*/
+		db.QueryRow("SELECT * FROM ")
+	case http.MethodGet:
+	case http.MethodDelete:
+	}
+}
 func main() {
 	if dbConnectionErr != nil {
 		log.Fatal(dbConnectionErr)
@@ -126,6 +163,9 @@ func main() {
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/about", aboutHandler)
 	http.HandleFunc("/contact", contactHandler)
+
+	// tests endpoints
+	http.HandleFunc("/tests")
 
 	fmt.Println("Starting server on :8080...")
 	http.ListenAndServe(":8080", nil)
