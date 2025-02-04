@@ -36,14 +36,15 @@ paths:
   /tests:
     parameters:
       - $ref: "#/components/parameters/Session"
-      - name: "number-of-questions"
-        in: query
-        required: true
-        schema:
-          type: integer
-        example: 50
     post:
       summary: Create a test for the user
+      parameters:
+        - name: "number-of-questions"
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: 50
       responses:
         '201':
           description: Successfully created test
