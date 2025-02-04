@@ -15,13 +15,15 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-var templates = template.Must(template.ParseGlob("templates/*.html"))
+var aboutTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/about.html"))
+var contactTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/contact.html"))
+var chineseTestTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/chinese_test.html"))
 var db, dbConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db")
 var dbMutex sync.RWMutex
 
-func renderTemplate(w http.ResponseWriter, tmpl string, data any) {
+func renderTemplate(w http.ResponseWriter, temp *template.Template, data any) {
 	w.Header().Set("Content-Type", "text/html")
-	err := templates.ExecuteTemplate(w, tmpl, data)
+	err := temp.ExecuteTemplate(w, "base.html", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -71,16 +73,20 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		setSessionCookie(w, sessionID)
+		// new user session
+		renderTemplate(w, chineseTestTemplate, nil)
+		return
 	}
-	renderTemplate(w, "base.html", nil)
+	// returning user session
+	renderTemplate(w, chineseTestTemplate, nil)
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "base.html", "about")
+	renderTemplate(w, aboutTemplate, nil)
 }
 
 func contactHandler(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "base.html", "contact")
+	renderTemplate(w, contactTemplate, nil)
 }
 
 /*
