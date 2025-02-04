@@ -56,6 +56,16 @@ paths:
                   <h1>Created your test</h1>
                   <button hx-get"questions/1309" hx-target="test-creation-status">Start your test</div>
                 </div>
+        '400':
+          description: Malformed Request due to incorrect parameters
+          content:
+            text/html:
+              schema:
+                type: string
+              example: | 
+                <div id="test-status">
+                  <h1>Please input the number of questions you'd like in your test.</h1>
+                </div>
         '405':
           description: Not allowed to make another test
           content:
