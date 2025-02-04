@@ -58,14 +58,16 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	_, getCookieError := r.Cookie("session_id")
+
 	if getCookieError != nil {
 		sessionID, randomGenerationError := generateSessionID()
 		if randomGenerationError != nil {
 			http.Error(w, randomGenerationError.Error(), http.StatusInternalServerError)
+			return
 		}
-		err := addUserSession(sessionID)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
+		dbError := addUserSession(sessionID)
+		if dbError != nil {
+			http.Error(w, dbError.Error(), http.StatusInternalServerError)
 			return
 		}
 		setSessionCookie(w, sessionID)
