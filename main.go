@@ -220,7 +220,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			chineseCharacter string
 			questionNumber   int
 			testID           string
-		}{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: testID}
+		}{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: sessionID}
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodGet:
 		path := strings.TrimPrefix(r.URL.Path, "/tests")
