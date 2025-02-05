@@ -3,7 +3,7 @@
   <div class="flex flex-col justify-center items-center text-7xl p-8">
     {{ .chineseCharacter  }}
   </div>
-  <form hx-get="api/check-answer" hx-target="#question-and-answer-form" hx-swap="outerHTML" class="flex flex-col items-center gap-3">
+  <form hx-patch="/question" hx-target="#question-and-answer-form" class="flex flex-col items-center gap-3">
     <div class="grow-1 flex flex-col items-center gap-4">
       <input name="user-answer" id="user-answer" type="text" class="border border-solid border-1 border-gray-400 p-4 block text-center text-3xl font-semibold w-full">
       <input name="question-number" type="hidden" value="{{ .questionNumber }}">
