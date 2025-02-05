@@ -46,7 +46,7 @@ func generateSessionID() (string, error) {
 }
 
 func addUserSession(sessionId string) error {
-	_, err := readWriteDB.Exec("INSERT INTO Users (sessionID) VALUES ('?')", sessionId)
+	_, err := readWriteDB.Exec("INSERT INTO Users (sessionID) VALUES (?)", sessionId)
 	return err
 }
 
@@ -64,14 +64,14 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 
 func isUserRegisteredInDatabase(sessionID string) bool {
 	var result bool
-	readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = \"?\")", sessionID).Scan(&result)
+	readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = ?)", sessionID).Scan(&result)
 	return result
 }
 
 func doesUserHaveTest(sessionID string) bool {
 	// determine if they have a test
 	var result bool
-	readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Tests WHERE userSessionID = \"?\")", sessionID).Scan(&result)
+	readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Tests WHERE userSessionID = ?)", sessionID).Scan(&result)
 	return result
 }
 
@@ -99,7 +99,7 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	// the user has visited the site before
 	sessionID := sessionCookie.Value
 	if !isUserRegisteredInDatabase(sessionID) {
-		_, err := readWriteDB.Exec("INSERT INTO Users (sessionID) VALUES ('?')", sessionID)
+		_, err := readWriteDB.Exec("INSERT INTO Users (sessionID) VALUES (?)", sessionID)
 		if err != nil {
 			http.Error(w, "Could not create user in database", 500)
 			return
@@ -166,7 +166,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not begin transaction", http.StatusInternalServerError)
 			return
 		}
-		newTest, err := tx.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES ('?', ?)", sessionID, numQuestions)
+		newTest, err := tx.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES (?, ?)", sessionID, numQuestions)
 		if err != nil {
 			http.Error(w, "Could not execute INSERT to Tests in transaction", http.StatusInternalServerError)
 			tx.Rollback()
