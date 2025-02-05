@@ -23,7 +23,7 @@ CREATE INDEX idx_word_pinyin on Words(pinyin);
 
 CREATE TABLE Questions (
   wordID INTEGER,
-  testID INTEGER,
+  testID TEXT,
   questionNumber INTEGER NOT NULL,
   usersAnswer TEXT,
   FOREIGN KEY (wordID) REFERENCES Words(id) ON DELETE RESTRICT,
