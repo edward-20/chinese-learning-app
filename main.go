@@ -69,7 +69,7 @@ func isUserRegisteredInDatabase(sessionID string) bool {
 
 func doesUserHaveTest(sessionID string) bool {
 	// determine if they have a test
-	var currentQuestion sql.NullInt16
+	var currentQuestion sql.NullInt64
 	noTestError := readOnlyDB.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = \"?\"", sessionID).Scan(&currentQuestion)
 	if noTestError != nil {
 		return false
@@ -168,18 +168,19 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not begin transaction", http.StatusInternalServerError)
 			return
 		}
-		_, err = tx.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES ('?', ?)", sessionID, numQuestions)
+		newTest, err := tx.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES ('?', ?)", sessionID, numQuestions)
 		if err != nil {
 			http.Error(w, "Could not execute INSERT to Tests in transaction", http.StatusInternalServerError)
 			tx.Rollback()
 			return
 		}
 
+		newTestID, err := newTest.LastInsertId()
+
 		// create the questions
 		permutation := rand.Perm(500)
-		for i, v := range permutation {
-			// does sqlite store primary key ids as 1,2,3,4 in regards to foreign key reference to Word
-			_, err = tx.Exec("INSERT INTO Questions (wordID, testID, questionNumber) VALUES (?, ?, ?)", v, sessionID, i)
+		for questionNumber, randomNumber := range permutation {
+			_, err = tx.Exec("INSERT INTO Questions (wordID, testID, questionNumber) VALUES (?, ?, ?)", randomNumber+1, sessionID, questionNumber+1)
 			if err != nil {
 				http.Error(w, "Could not execute INSERT to Questions in transaction", http.StatusInternalServerError)
 				tx.Rollback()
@@ -191,7 +192,38 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not commit transaction.", http.StatusInternalServerError)
 		}
 
-		renderTemplate(w, testQuestionTemplate, nil) // needs the current question context
+		var wordID, testID int
+		err = readOnlyDB.QueryRow("SELECT wordID, testID FROM Questions WHERE testID = ? AND questionNumber = ?", newTestID, 1).Scan(&wordID, &testID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, "Could not find the first question", 500)
+				return
+			}
+			http.Error(w, "Could not find the first question due to unforseen error", 500)
+			return
+		}
+
+		var chineseCharacter sql.NullString
+		err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = ", wordID).Scan(&chineseCharacter)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, "Could not find the word corresponding to the question", 500)
+				return
+			}
+			http.Error(w, "Could not find the word corresponding to the question due to unforseen error", 500)
+			return
+		}
+		if !chineseCharacter.Valid {
+			http.Error(w, "Could not find details of the chinese character of the first question due to unforseen error", 500)
+			return
+		}
+
+		context := struct {
+			chineseCharacter string
+			questionNumber   int
+			testID           int
+		}{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: testID}
+		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodGet:
 	case http.MethodDelete:
 	}

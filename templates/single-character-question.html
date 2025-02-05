@@ -1,14 +1,13 @@
 {{ define "content" }}
 <div id="question-and-answer-form" style="box-shadow: 0 2px 2px rgba(0,0,0,.3);" class="border border-gray-100 border-2 rounded-md h-full flex flex-col justify-center relative">
   <div class="flex flex-col justify-center items-center text-7xl p-8">
-    {{ .ChineseCharacter  }}
+    {{ .chineseCharacter  }}
   </div>
   <form hx-get="api/check-answer" hx-target="#question-and-answer-form" hx-swap="outerHTML" class="flex flex-col items-center gap-3">
     <div class="grow-1 flex flex-col items-center gap-4">
       <input name="user-answer" id="user-answer" type="text" class="border border-solid border-1 border-gray-400 p-4 block text-center text-3xl font-semibold w-full">
-
-      <input name="correct-answer" type="hidden" value="{{ .Pinyin }}">
-      <input name="chinese-character" type="hidden" value="{{ .ChineseCharacter }}">
+      <input name="question-number" type="hidden" value="{{ .questionNumber }}">
+      <input name="test-id" type="hidden" value="{{ .testID }}">
       <button type="submit" class="bg-sky-100 border border-solid border-gray-400 border-[1px] py-2 px-4 rounded-md">Submit</button>
     </div>
   </form>

@@ -131,15 +131,22 @@ paths:
           $ref: "#/components/responses/TestNotFound"
         '403':
           $ref: "#/components/responses/ForbiddenWriteToTest"
-  /question/{questionID}:
+  /question:
     parameters:
-      - name: questionID
-        in: path
+      - name: testID
+        in: query
         required: true
         schema:
-          type: string
+          type: integer
+        example: "2302"
+      - name: questionNumber
+        in: query
+        required: true
+        schema:
+          type: integer
+        example: "38"
     get:
-      summary: Get the question corresponding to questionID
+      summary: Get the question corresponding to testID and questionNumber
       responses:
         '200':
           description: Successfully got question
@@ -150,7 +157,7 @@ paths:
               example: |
                 <div>
                   Question 1 out of 5. 愛 What is this word in pinyin?
-                  <form hx-post"/feedback">
+                  <form hx-patch"/question">
                     <input></input>
                     <button type="submit">
                   </form>
@@ -166,19 +173,22 @@ paths:
                   Question Not found
                   <button hx-get="/tests">Go to your current question.</button>
                 </div>
-  /feedback:
-    summary: Get the feedback for a question
-    parameters:
-      - $ref: "#/components/parameters/Session"
-
-    post:
+    patch:
+      summary: Patch the answer to the question
       parameters:
-        - name: questionID
+        - $ref: "#/components/parameters/Session"
+        - name: testID
           in: query
           required: true
           schema:
-            type: string
-          example: "3209ss"
+            type: integer
+          example: "2302"
+        - name: questionNumber
+          in: query
+          required: true
+          schema:
+            type: integer
+          example: "38"
         - name: userAnswer
           in: query
           required: true
