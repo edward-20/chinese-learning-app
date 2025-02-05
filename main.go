@@ -23,7 +23,8 @@ var resumeTestTemplate = template.Must(template.ParseFiles("templates/base.html"
 var testQuestionTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/single-character-question.html"))
 var testSolutionRemplate = template.Must(template.ParseFiles("templates/base.html", "templates/check-answer.html"))
 
-var db, dbConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000")
+var readWriteDB, readWriteDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000")
+var readOnlyDB, readOnlyDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000&mode=ro")
 
 func renderTemplate(w http.ResponseWriter, temp *template.Template, data any) {
 	w.Header().Set("Content-Type", "text/html")
@@ -44,7 +45,7 @@ func generateSessionID() (string, error) {
 }
 
 func addUserSession(sessionId string) error {
-	_, err := db.Exec("INSERT INTO Users (sessionID) VALUES ('?')", sessionId)
+	_, err := readWriteDB.Exec("INSERT INTO Users (sessionID) VALUES ('?')", sessionId)
 	return err
 }
 
@@ -62,14 +63,14 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 
 func isUserRegisteredInDatabase(sessionID string) bool {
 	var isUserRegistered sql.NullBool
-	db.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = \"?\")", sessionID).Scan(&isUserRegistered)
+	readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = \"?\")", sessionID).Scan(&isUserRegistered)
 	return isUserRegistered.Valid
 }
 
 func doesUserHaveTest(sessionID string) bool {
 	// determine if they have a test
 	var currentQuestion sql.NullInt16
-	noTestError := db.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = \"?\"", sessionID).Scan(&currentQuestion)
+	noTestError := readOnlyDB.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = \"?\"", sessionID).Scan(&currentQuestion)
 	if noTestError != nil {
 		return false
 	}
@@ -100,9 +101,9 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 	// the user has visited the site before
 	sessionID := sessionCookie.Value
 	if !isUserRegisteredInDatabase(sessionID) {
-		_, err := db.Exec("INSERT INTO Users (sessionID) VALUES ('?')", sessionID)
+		_, err := readWriteDB.Exec("INSERT INTO Users (sessionID) VALUES ('?')", sessionID)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, "Could not create user in database", 500)
 			return
 		}
 	}
@@ -158,38 +159,54 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 
 		if numQuestions > 0 || numQuestions > 500 {
 			http.Error(w, "Invalid Request to POST /tests, provide number of questions in the query within the range of 1-500.", http.StatusBadRequest)
+			return
 		}
 
 		// create a test
-		_, err = db.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES ('?', ?)", sessionID, numQuestions)
+		tx, err := readWriteDB.Begin()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "Could not begin transaction", http.StatusInternalServerError)
+			return
+		}
+		_, err = tx.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES ('?', ?)", sessionID, numQuestions)
+		if err != nil {
+			http.Error(w, "Could not execute INSERT to Tests in transaction", http.StatusInternalServerError)
+			tx.Rollback()
+			return
 		}
 
 		// create the questions
 		permutation := rand.Perm(500)
 		for i, v := range permutation {
-			tx, err := db.Begin()
-
+			// does sqlite store primary key ids as 1,2,3,4 in regards to foreign key reference to Word
 			_, err = tx.Exec("INSERT INTO Questions (wordID, testID, questionNumber) VALUES (?, ?, ?)", v, sessionID, i)
 			if err != nil {
+				http.Error(w, "Could not execute INSERT to Questions in transaction", http.StatusInternalServerError)
 				tx.Rollback()
+				return
 			}
 		}
+		err = tx.Commit()
+		if err != nil {
+			http.Error(w, "Could not commit transaction.", http.StatusInternalServerError)
+		}
+
 		renderTemplate(w, testQuestionTemplate, nil) // needs the current question context
 	case http.MethodGet:
-		pass
 	case http.MethodDelete:
-		pass
 	}
 	return
 }
 
 func main() {
-	if dbConnectionErr != nil {
-		log.Fatal(dbConnectionErr)
+	if readOnlyDBConnectionErr != nil || readWriteDBConnectionErr != nil {
+		log.Fatal("Unable to connect to database")
 	}
-	defer db.Close()
+	defer readOnlyDB.Close()
+	defer readWriteDB.Close()
+
+	readOnlyDB.SetMaxOpenConns(8)
+	readWriteDB.SetMaxOpenConns(1)
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
@@ -200,7 +217,7 @@ func main() {
 	http.HandleFunc("/contact", contactHandler)
 
 	// tests endpoints
-	http.HandleFunc("/tests")
+	http.HandleFunc("/tests", testsHandler)
 
 	fmt.Println("Starting server on :8080...")
 	http.ListenAndServe(":8080", nil)
