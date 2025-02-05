@@ -225,7 +225,9 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 		}{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: testID}
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodGet:
+		http.Error(w, "Endpoint has not been implemented", http.StatusNotFound)
 	case http.MethodDelete:
+		http.Error(w, "Endpoint has not been implemented", http.StatusNotFound)
 	}
 	return
 }
