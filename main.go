@@ -11,6 +11,7 @@ import (
 	"math/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -23,8 +24,8 @@ var resumeTestTemplate = template.Must(template.ParseFiles("templates/base.html"
 var testQuestionTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/single-character-question.html"))
 var testSolutionRemplate = template.Must(template.ParseFiles("templates/base.html", "templates/check-answer.html"))
 
-var readWriteDB, readWriteDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000")
-var readOnlyDB, readOnlyDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000&mode=ro")
+var readWriteDB, readWriteDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000&_foreign_keys=on")
+var readOnlyDB, readOnlyDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000&mode=ro&_foreign_keys=on")
 
 func renderTemplate(w http.ResponseWriter, temp *template.Template, data any) {
 	w.Header().Set("Content-Type", "text/html")
@@ -62,19 +63,16 @@ func setSessionCookie(w http.ResponseWriter, sessionID string) {
 }
 
 func isUserRegisteredInDatabase(sessionID string) bool {
-	var isUserRegistered sql.NullBool
-	readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = \"?\")", sessionID).Scan(&isUserRegistered)
-	return isUserRegistered.Valid
+	var result bool
+	readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Users WHERE sessionID = \"?\")", sessionID).Scan(&result)
+	return result
 }
 
 func doesUserHaveTest(sessionID string) bool {
 	// determine if they have a test
-	var currentQuestion sql.NullInt64
-	noTestError := readOnlyDB.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = \"?\"", sessionID).Scan(&currentQuestion)
-	if noTestError != nil {
-		return false
-	}
-	return true
+	var result bool
+	noTestError := readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Tests WHERE userSessionID = \"?\")", sessionID).Scan(&result)
+	return result
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
@@ -192,8 +190,8 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not commit transaction.", http.StatusInternalServerError)
 		}
 
-		var wordID, testID int
-		err = readOnlyDB.QueryRow("SELECT wordID, testID FROM Questions WHERE testID = ? AND questionNumber = ?", newTestID, 1).Scan(&wordID, &testID)
+		var wordID int
+		err = readOnlyDB.QueryRow("SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?", newTestID, 1).Scan(&wordID)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "Could not find the first question", 500)
@@ -204,7 +202,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var chineseCharacter sql.NullString
-		err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = ", wordID).Scan(&chineseCharacter)
+		err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = ?", wordID).Scan(&chineseCharacter)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "Could not find the word corresponding to the question", 500)
@@ -221,11 +219,43 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 		context := struct {
 			chineseCharacter string
 			questionNumber   int
-			testID           int
+			testID           string
 		}{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: testID}
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodGet:
-		http.Error(w, "Endpoint has not been implemented", http.StatusNotFound)
+		path := strings.TrimPrefix(r.URL.Path, "/tests")
+		if path == "" {
+			// get the testID from the user
+		} else {
+			// check that this test belongs to this user
+			if path != sessionID {
+				http.Error(w, "The test doesn't belong to this user", http.StatusForbidden)
+				return
+			}
+
+			// check that the user actually has a test
+			var currentQuestion int
+			err := readOnlyDB.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = ?)", path).Scan(&currentQuestion)
+			if err != nil {
+				if errors.Is(err, sql.ErrNoRows) {
+					http.Error(w, "The user doesn't have a test", http.StatusNotFound)
+					return
+				}
+				http.Error(w, "The user doesn't have a test in an unforseen way", http.StatusNotFound)
+				return
+			}
+
+			// get their question
+			readOnlyDB.QueryRow("SELECT wordID, usersAnswer FROM Questions WHERE testID = ? AND questionNumber = ?", path, currentQuestion)
+
+			// context := struct {
+			// 	chineseCharacter string
+			// 	questionNumber   int
+			// 	testID           int
+			// }{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: testID}
+			// renderTemplate(w, testQuestionTemplate, context)
+
+		}
 	case http.MethodDelete:
 		http.Error(w, "Endpoint has not been implemented", http.StatusNotFound)
 	}
