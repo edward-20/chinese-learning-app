@@ -71,7 +71,7 @@ func isUserRegisteredInDatabase(sessionID string) bool {
 func doesUserHaveTest(sessionID string) bool {
 	// determine if they have a test
 	var result bool
-	noTestError := readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Tests WHERE userSessionID = \"?\")", sessionID).Scan(&result)
+	readOnlyDB.QueryRow("SELECT EXISTS (SELECT 1 FROM Tests WHERE userSessionID = \"?\")", sessionID).Scan(&result)
 	return result
 }
 

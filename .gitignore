@@ -1,4 +1,4 @@
 tmp/
 node_modules/
 static/index.css
-db/*.db
+db/*.db*
