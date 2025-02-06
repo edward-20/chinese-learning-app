@@ -1,0 +1,21 @@
+{{ define "content" }}
+<div id="test-review" style="box-shadow: 0 2px 2px rgba(0,0,0,.3);" class="border border-gray-100 border-2 rounded-md h-full flex flex-col justify-center relative">
+  <div>
+    <h2>You scored</h2>
+    <h1>{{ .score }} out of {{ .totalNumberOfQuestion }} </h1>
+  </div>
+  <div>
+    <button hx-delete="/tests/{{ .testID }}" hx-target="#test-review">Start a new test?</button>
+  </div>
+    <!--
+    to be implemented in GET /tests
+    <div class="border border-solid border-1 rounded-md">
+      {{ range .questions }}
+        <p>{{ .chineseCharacter }}</p>
+        <p>Answer: {{ .yourAnswer }}</p>
+        <p>Solution: {{ .pinyin }}</p>
+      {{ end }}
+    </div>
+    -->
+</div>
+{{ end }}

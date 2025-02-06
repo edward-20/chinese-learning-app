@@ -22,7 +22,8 @@ var contactTemplate = template.Must(template.ParseFiles("templates/base.html", "
 var startTestTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/test-start.html"))
 var resumeTestTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/test-resume.html"))
 var testQuestionTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/single-character-question.html"))
-var testSolutionRemplate = template.Must(template.ParseFiles("templates/base.html", "templates/check-answer.html"))
+var testSolutionTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/check-answer.html"))
+var testReviewTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/review.html"))
 
 var readWriteDB, readWriteDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000&_foreign_keys=on")
 var readOnlyDB, readOnlyDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000&mode=ro&_foreign_keys=on")
@@ -151,7 +152,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 
 		numQuestions, err := strconv.Atoi(numQuestionsWanted)
 		if err != nil {
-			http.Error(w, "Invalid Request to POST /tests, provide number of questions as query", http.StatusBadRequest)
+			http.Error(w, "Invalid Request to POST /tests, provide number of questions as integer query", http.StatusBadRequest)
 			return
 		}
 
@@ -235,7 +236,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// get their question
-			var wordID sql.NullInt32
+			var wordID int
 			var usersAnswer sql.NullString
 			readOnlyDB.QueryRow("SELECT wordID, usersAnswer FROM Questions WHERE testID = ? AND questionNumber = ?", path, currentQuestion).Scan(&wordID, &usersAnswer)
 
@@ -245,26 +246,42 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 				if currentQuestion == totalNumberOfQuestions {
 					// compute the number of correct answers
 					var score int
-					readOnlyDB.QueryRow("SELECT COUNT(*) FROM Questions q JOIN Words w ON q.wordID = w.id WHERE q.testID = ? AND q.usersAnswer = w.pinyin", path).Scan(&score)
-					renderTemplate(w, score)
+					err := readOnlyDB.QueryRow("SELECT COUNT(*) FROM Questions q JOIN Words w ON q.wordID = w.id WHERE q.testID = ? AND q.usersAnswer = w.pinyin", path).Scan(&score)
+					if err != nil {
+						http.Error(w, "Score could not be obtained", http.StatusInternalServerError)
+					}
+					renderTemplate(w, testReviewTemplate, struct {
+						score                  int
+						totalNumberOfQuestions int
+						testID                 string
+					}{score: score, totalNumberOfQuestions: totalNumberOfQuestions, testID: sessionID})
+					return
 				}
-				// move onto the next question
-				// UPDATE Tests SET currentQuestion = ?
-				// render the template for the next question
-			}
-
-			if !wordID.Valid {
-				http.Error(w, "Question without word", http.StatusInternalServerError)
+				currentQuestion += 1
+				// or move onto the next question (not sure why this happens)
+				_, err = readWriteDB.Exec("UPDATE Tests SET currentQuestion = ? WHERE userSessionID = ?", currentQuestion)
+				if err != nil {
+					http.Error(w, "Unable to update the current question", http.StatusInternalServerError)
+				}
+				var chineseCharacter string
+				err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", sessionID, currentQuestion).Scan(&)
+				renderTemplate(w, testQuestionTemplate, struct {
+					chineseCharacter string
+					questionNumber   int
+					testID           string
+				}{chineseCharacter: chinschineseCharacter, questionNumber: currentQuestion, testID: sessionID})
 				return
 			}
-			readOnlyDB.QueryRow("SELECT chineseCharacters FROM Word WHERE id = ?", wordID)
+			// else they haven't
+			var chineseCharacter string
+			readOnlyDB.QueryRow("SELECT chineseCharacters FROM Word WHERE id = ?", wordID).Scan(&chineseCharacter)
 
-			// context := struct {
-			// 	chineseCharacter string
-			// 	questionNumber   int
-			// 	testID           int
-			// }{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: testID}
-			// renderTemplate(w, testQuestionTemplate, context)
+			context := struct {
+				chineseCharacter string
+				questionNumber   int
+				testID           int
+			}{chineseCharacter: chineseCharacter.String, questionNumber: currentQuestion, testID: sessionID}
+			renderTemplate(w, testQuestionTemplate, context)
 
 		}
 	case http.MethodDelete:
