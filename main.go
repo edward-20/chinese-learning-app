@@ -305,8 +305,35 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Unable to delete test", http.StatusInternalServerError)
 		}
 		renderTemplate(w, startTestTemplate, nil)
+	default:
+		http.Error(w, "/tests does not have implementation for methods outside of GET DELETE and POST", http.StatusNotFound)
 	}
 	return
+}
+
+func questionHandler(w http.ResponseWriter, r *http.Request) {
+	// is there a session cookie
+	sessionCookie, getCookieError := r.Cookie("session_id")
+	if getCookieError != nil {
+		http.Error(w, "Invalid Request to /tests, provide sessionID cookie", http.StatusBadRequest)
+		return
+	}
+	sessionID := sessionCookie.Value
+
+	if !isUserRegisteredInDatabase(sessionID) {
+		http.Error(w, "Internal Server Error. User is not registered in the database.", http.StatusInternalServerError)
+		return
+	}
+
+	testID := r.URL.Query().Get("testID")
+	questionNumber := r.URL.Query().Get("questionNumber")
+	if sessionID != testID {
+		http.Error(w, "test doesn't belong to user", http.StatusForbidden)
+	}
+	switch r.Method {
+	case http.MethodGet:
+	case http.MethodPatch:
+	}
 }
 
 func main() {
@@ -329,6 +356,8 @@ func main() {
 
 	// tests endpoints
 	http.HandleFunc("/tests", testsHandler)
+
+	http.HandleFunc("/question", questionHandler)
 
 	fmt.Println("Starting server on :8080...")
 	http.ListenAndServe(":8080", nil)
