@@ -133,11 +133,12 @@ paths:
           $ref: "#/components/responses/ForbiddenWriteToTest"
   /question:
     parameters:
+      - $ref: "#/components/parameters/Session"
       - name: testID
         in: query
         required: true
         schema:
-          type: integer
+          type: string
         example: "2302"
       - name: questionNumber
         in: query
@@ -176,19 +177,6 @@ paths:
     patch:
       summary: Patch the answer to the question
       parameters:
-        - $ref: "#/components/parameters/Session"
-        - name: testID
-          in: query
-          required: true
-          schema:
-            type: integer
-          example: "2302"
-        - name: questionNumber
-          in: query
-          required: true
-          schema:
-            type: integer
-          example: "38"
         - name: userAnswer
           in: query
           required: true
