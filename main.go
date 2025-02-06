@@ -166,14 +166,12 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not begin transaction", http.StatusInternalServerError)
 			return
 		}
-		newTest, err := tx.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES (?, ?)", sessionID, numQuestions)
+		_, err = tx.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES (?, ?)", sessionID, numQuestions)
 		if err != nil {
 			http.Error(w, "Could not execute INSERT to Tests in transaction", http.StatusInternalServerError)
 			tx.Rollback()
 			return
 		}
-
-		newTestID, err := newTest.LastInsertId()
 
 		// create the questions
 		permutation := rand.Perm(500)
@@ -190,19 +188,8 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not commit transaction.", http.StatusInternalServerError)
 		}
 
-		var wordID int
-		err = readOnlyDB.QueryRow("SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?", newTestID, 1).Scan(&wordID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				http.Error(w, "Could not find the first question", 500)
-				return
-			}
-			http.Error(w, "Could not find the first question due to unforseen error", 500)
-			return
-		}
-
 		var chineseCharacter sql.NullString
-		err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = ?", wordID).Scan(&chineseCharacter)
+		err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", sessionID, 1).Scan(&chineseCharacter)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "Could not find the word corresponding to the question", 500)
@@ -222,6 +209,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			testID           string
 		}{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: sessionID}
 		renderTemplate(w, testQuestionTemplate, context)
+
 	case http.MethodGet:
 		path := strings.TrimPrefix(r.URL.Path, "/tests")
 		if path == "" {
@@ -235,7 +223,8 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 
 			// check that the user actually has a test
 			var currentQuestion int
-			err := readOnlyDB.QueryRow("SELECT currentQuestion FROM Tests WHERE userSessionID = ?)", path).Scan(&currentQuestion)
+			var totalNumberOfQuestions int
+			err := readOnlyDB.QueryRow("SELECT currentQuestion, totalNumberOfQuestions FROM Tests WHERE userSessionID = ?)", path).Scan(&currentQuestion)
 			if err != nil {
 				if errors.Is(err, sql.ErrNoRows) {
 					http.Error(w, "The user doesn't have a test", http.StatusNotFound)
@@ -246,7 +235,29 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// get their question
-			readOnlyDB.QueryRow("SELECT wordID, usersAnswer FROM Questions WHERE testID = ? AND questionNumber = ?", path, currentQuestion)
+			var wordID sql.NullInt32
+			var usersAnswer sql.NullString
+			readOnlyDB.QueryRow("SELECT wordID, usersAnswer FROM Questions WHERE testID = ? AND questionNumber = ?", path, currentQuestion).Scan(&wordID, &usersAnswer)
+
+			// if they've already answered this question
+			if usersAnswer.Valid {
+				// end the test
+				if currentQuestion == totalNumberOfQuestions {
+					// compute the number of correct answers
+					var score int
+					readOnlyDB.QueryRow("SELECT COUNT(*) FROM Questions q JOIN Words w ON q.wordID = w.id WHERE q.testID = ? AND q.usersAnswer = w.pinyin", path).Scan(&score)
+					renderTemplate(w, score)
+				}
+				// move onto the next question
+				// UPDATE Tests SET currentQuestion = ?
+				// render the template for the next question
+			}
+
+			if !wordID.Valid {
+				http.Error(w, "Question without word", http.StatusInternalServerError)
+				return
+			}
+			readOnlyDB.QueryRow("SELECT chineseCharacters FROM Word WHERE id = ?", wordID)
 
 			// context := struct {
 			// 	chineseCharacter string
