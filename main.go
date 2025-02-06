@@ -215,77 +215,96 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 		path := strings.TrimPrefix(r.URL.Path, "/tests")
 		if path == "" {
 			// get the testID from the user
-		} else {
-			// check that this test belongs to this user
-			if path != sessionID {
-				http.Error(w, "The test doesn't belong to this user", http.StatusForbidden)
+			http.Error(w, "GET /tests has not been implemented", http.StatusNotFound)
+			return
+		}
+
+		// check that this test belongs to this user
+		if path != sessionID {
+			http.Error(w, "The test doesn't belong to this user", http.StatusForbidden)
+			return
+		}
+
+		// check that the user actually has a test
+		var currentQuestion int
+		var totalNumberOfQuestions int
+		err := readOnlyDB.QueryRow("SELECT currentQuestion, totalNumberOfQuestions FROM Tests WHERE userSessionID = ?)", path).Scan(&currentQuestion)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				http.Error(w, "The user doesn't have a test", http.StatusNotFound)
 				return
 			}
+			http.Error(w, "The user doesn't have a test in an unforseen way", http.StatusNotFound)
+			return
+		}
 
-			// check that the user actually has a test
-			var currentQuestion int
-			var totalNumberOfQuestions int
-			err := readOnlyDB.QueryRow("SELECT currentQuestion, totalNumberOfQuestions FROM Tests WHERE userSessionID = ?)", path).Scan(&currentQuestion)
-			if err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					http.Error(w, "The user doesn't have a test", http.StatusNotFound)
-					return
-				}
-				http.Error(w, "The user doesn't have a test in an unforseen way", http.StatusNotFound)
-				return
-			}
+		// get their question
+		var wordID int
+		var usersAnswer sql.NullString
+		readOnlyDB.QueryRow("SELECT wordID, usersAnswer FROM Questions WHERE testID = ? AND questionNumber = ?", path, currentQuestion).Scan(&wordID, &usersAnswer)
 
-			// get their question
-			var wordID int
-			var usersAnswer sql.NullString
-			readOnlyDB.QueryRow("SELECT wordID, usersAnswer FROM Questions WHERE testID = ? AND questionNumber = ?", path, currentQuestion).Scan(&wordID, &usersAnswer)
-
-			// if they've already answered this question
-			if usersAnswer.Valid {
-				// end the test
-				if currentQuestion == totalNumberOfQuestions {
-					// compute the number of correct answers
-					var score int
-					err := readOnlyDB.QueryRow("SELECT COUNT(*) FROM Questions q JOIN Words w ON q.wordID = w.id WHERE q.testID = ? AND q.usersAnswer = w.pinyin", path).Scan(&score)
-					if err != nil {
-						http.Error(w, "Score could not be obtained", http.StatusInternalServerError)
-					}
-					renderTemplate(w, testReviewTemplate, struct {
-						score                  int
-						totalNumberOfQuestions int
-						testID                 string
-					}{score: score, totalNumberOfQuestions: totalNumberOfQuestions, testID: sessionID})
-					return
-				}
-				currentQuestion += 1
-				// or move onto the next question (not sure why this happens)
-				_, err = readWriteDB.Exec("UPDATE Tests SET currentQuestion = ? WHERE userSessionID = ?", currentQuestion)
+		// if they've already answered this question
+		if usersAnswer.Valid {
+			// end the test
+			if currentQuestion == totalNumberOfQuestions {
+				// compute the number of correct answers
+				var score int
+				err := readOnlyDB.QueryRow("SELECT COUNT(*) FROM Questions q JOIN Words w ON q.wordID = w.id WHERE q.testID = ? AND q.usersAnswer = w.pinyin", path).Scan(&score)
 				if err != nil {
-					http.Error(w, "Unable to update the current question", http.StatusInternalServerError)
+					http.Error(w, "Score could not be obtained", http.StatusInternalServerError)
 				}
-				var chineseCharacter string
-				err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", sessionID, currentQuestion).Scan(&)
-				renderTemplate(w, testQuestionTemplate, struct {
-					chineseCharacter string
-					questionNumber   int
-					testID           string
-				}{chineseCharacter: chinschineseCharacter, questionNumber: currentQuestion, testID: sessionID})
+				renderTemplate(w, testReviewTemplate, struct {
+					score                  int
+					totalNumberOfQuestions int
+					testID                 string
+				}{score: score, totalNumberOfQuestions: totalNumberOfQuestions, testID: sessionID})
 				return
 			}
-			// else they haven't
+			currentQuestion += 1
+			// or move onto the next question (not sure why this happens)
+			_, err = readWriteDB.Exec("UPDATE Tests SET currentQuestion = ? WHERE userSessionID = ?", currentQuestion)
+			if err != nil {
+				http.Error(w, "Unable to update the current question", http.StatusInternalServerError)
+			}
 			var chineseCharacter string
-			readOnlyDB.QueryRow("SELECT chineseCharacters FROM Word WHERE id = ?", wordID).Scan(&chineseCharacter)
-
-			context := struct {
+			err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", sessionID, currentQuestion).Scan(&chineseCharacter)
+			renderTemplate(w, testQuestionTemplate, struct {
 				chineseCharacter string
 				questionNumber   int
-				testID           int
-			}{chineseCharacter: chineseCharacter.String, questionNumber: currentQuestion, testID: sessionID}
-			renderTemplate(w, testQuestionTemplate, context)
-
+				testID           string
+			}{chineseCharacter: chineseCharacter, questionNumber: currentQuestion, testID: sessionID})
+			return
 		}
+		// else they haven't
+		var chineseCharacter string
+		readOnlyDB.QueryRow("SELECT chineseCharacters FROM Word WHERE id = ?", wordID).Scan(&chineseCharacter)
+
+		context := struct {
+			chineseCharacter string
+			questionNumber   int
+			testID           string
+		}{chineseCharacter: chineseCharacter, questionNumber: currentQuestion, testID: sessionID}
+		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodDelete:
-		http.Error(w, "Endpoint has not been implemented", http.StatusNotFound)
+		path := strings.TrimPrefix(r.URL.Path, "/tests")
+		if path == "" {
+			// get the testID from the user
+			http.Error(w, "DELETE /tests has not been implemented", http.StatusNotFound)
+			return
+		}
+
+		// check that this test belongs to this user
+		if path != sessionID {
+			http.Error(w, "The test doesn't belong to this user", http.StatusForbidden)
+			return
+		}
+
+		// delete their test and their questions and then give them the test-start page
+		_, err := readWriteDB.Exec("DELETE FROM Tests WHERE userSessionID = ?", sessionID)
+		if err != nil {
+			http.Error(w, "Unable to delete test", http.StatusInternalServerError)
+		}
+		renderTemplate(w, startTestTemplate, nil)
 	}
 	return
 }
