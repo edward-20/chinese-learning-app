@@ -328,11 +328,54 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 	testID := r.URL.Query().Get("testID")
 	questionNumber := r.URL.Query().Get("questionNumber")
 	if sessionID != testID {
-		http.Error(w, "test doesn't belong to user", http.StatusForbidden)
+		http.Error(w, "Test doesn't belong to user", http.StatusForbidden)
+		return
 	}
+
+	if questionNumber == "" {
+		http.Error(w, "Malformed Request to /question. Needs questionNumber query to endpoint", http.StatusBadRequest)
+		return
+	}
+
+	currentQuestion, err := strconv.Atoi(questionNumber)
+	if err != nil {
+		http.Error(w, "Malformed Request to /question. questionNumber query needs to be an integer", http.StatusBadRequest)
+		return
+	}
+
 	switch r.Method {
 	case http.MethodGet:
+		// get the chinese character
+		var chineseCharacter string
+		readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", testID, currentQuestion).Scan(&chineseCharacter)
+		context := struct {
+			chineseCharacter string
+			questionNumber   int
+			testID           string
+		}{chineseCharacter: chineseCharacter, questionNumber: currentQuestion}
+		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodPatch:
+		userAnswer := r.URL.Query().Get("userAnswer")
+		if userAnswer == "" {
+			http.Error(w, "Malformed Request to PATCH /question. userAnswer needs to be supplied.", http.StatusBadRequest)
+			return
+		}
+		// update the question with the users input
+		readWriteDB.Exec("UPDATE Questions SET usersAnswer = ? WHERE testID = ? AND questionNumber = ?", testID, currentQuestion)
+		// update the current question in tests
+		readWriteDB.Exec("UPDATE Tests SET currentQuestion = currentQuestion + 1 WHERE id = ?", testID)
+		// render a template telling them if they're correct or not
+		var chineseCharacter, correctPinyinAnswer string
+		readOnlyDB.QueryRow("SELECT chineseCharacters, pinyin FROM Words WHERE id = (SELECT wordID from Questions WHERE testID = ? AND questionNumber = ?)", testID, currentQuestion+1).Scan(&chineseCharacter, &correctPinyinAnswer)
+		context := struct {
+			chineseCharacter    string
+			correctPinyinAnswer string
+			userPinyinAnswer    string
+			testID              string
+			nextQuestionNumber  int
+		}{chineseCharacter: chineseCharacter, correctPinyinAnswer: correctPinyinAnswer, userPinyinAnswer: userAnswer, testID: testID, nextQuestionNumber: currentQuestion + 1}
+		renderTemplate(w, testSolutionTemplate, context)
+		return
 	}
 }
 

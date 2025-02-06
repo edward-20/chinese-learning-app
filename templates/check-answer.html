@@ -8,7 +8,7 @@
     {{ else }}
       <p>Incorrect: The right answer was {{ .CorrectPinyinAnswer }} </p>
     {{ end }}
-    <button id="next-question" hx-get="/question" hx-target="#answer-result" class="border border-solid border-gray-400 border-[1px] py-2 px-4 rounded-md mt-3" hx-swap="outerHTML">Next Question</button>
+    <button id="next-question" hx-get="/question?testID={{ .testID }}&questionNumber={{ .nextQuestion }}" hx-target="#answer-result" class="border border-solid border-gray-400 border-[1px] py-2 px-4 rounded-md mt-3" hx-swap="outerHTML">Next Question</button>
   </div>
   <div class="absolute bottom-4 left-4 text-sm">
     <p>* Press enter to go to the next question.</p>
