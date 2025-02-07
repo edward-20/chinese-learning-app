@@ -290,8 +290,9 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		// else they haven't
 		var chineseCharacter string
-		readOnlyDB.QueryRow("SELECT chineseCharacters FROM Word WHERE id = ?", wordID).Scan(&chineseCharacter)
+		readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = ?", wordID).Scan(&chineseCharacter)
 
+		fmt.Println(chineseCharacter, currentQuestion, sessionID)
 		context := struct {
 			ChineseCharacter string
 			QuestionNumber   int
