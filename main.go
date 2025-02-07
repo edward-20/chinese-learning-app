@@ -117,7 +117,13 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		renderTemplate(w, startTestTemplate, nil)
 		return
 	}
-	renderTemplate(w, resumeTestTemplate, nil)
+	// find their testID
+	var testID string
+	err := readOnlyDB.QueryRow("SELECT userSessionID FROM Tests WHERE userSessionID = ?", sessionID).Scan(&testID)
+	if err != nil {
+		http.Error(w, "Could not find testID of user", http.StatusInternalServerError)
+	}
+	renderTemplate(w, resumeTestTemplate, struct{ TestID string }{TestID: testID})
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
@@ -159,20 +165,17 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Println("here2")
 		numQuestions, err := strconv.Atoi(numQuestionsWanted)
 		if err != nil {
 			http.Error(w, "Invalid Request to POST /tests, provide number of questions as integer query", http.StatusBadRequest)
 			return
 		}
 
-		fmt.Println("here3")
 		if numQuestions < 0 || numQuestions > 500 {
 			http.Error(w, "Invalid Request to POST /tests, provide number of questions in the query within the range of 1-500.", http.StatusBadRequest)
 			return
 		}
 
-		fmt.Println("here4")
 		// create a test
 		_, err = readWriteDB.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES (?, ?)", sessionID, numQuestions)
 		if err != nil {
@@ -180,7 +183,6 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Println("here5")
 		// create the questions
 		tx, err := readWriteDB.Begin()
 		permutation := rand.Perm(500)
@@ -199,7 +201,6 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not commit transaction.", http.StatusInternalServerError)
 		}
 
-		fmt.Println("here6")
 		var chineseCharacter sql.NullString
 		err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", sessionID, 1).Scan(&chineseCharacter)
 		if err != nil {
@@ -215,13 +216,11 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Println("here7")
 		context := struct {
 			ChineseCharacter string
 			QuestionNumber   int
 			TestID           string
 		}{ChineseCharacter: chineseCharacter.String, QuestionNumber: 1, TestID: sessionID}
-		fmt.Println("here8")
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodGet:
 		path := strings.TrimPrefix(r.URL.Path, "/tests")
@@ -265,11 +264,12 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 				if err != nil {
 					http.Error(w, "Score could not be obtained", http.StatusInternalServerError)
 				}
+				fmt.Println("here1")
 				renderTemplate(w, testReviewTemplate, struct {
-					score                  int
-					totalNumberOfQuestions int
-					testID                 string
-				}{score: score, totalNumberOfQuestions: totalNumberOfQuestions, testID: sessionID})
+					Score                  int
+					TotalNumberOfQuestions int
+					TestID                 string
+				}{Score: score, TotalNumberOfQuestions: totalNumberOfQuestions, TestID: sessionID})
 				return
 			}
 			currentQuestion += 1
@@ -280,11 +280,12 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			}
 			var chineseCharacter string
 			err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", sessionID, currentQuestion).Scan(&chineseCharacter)
+			fmt.Println("here2")
 			renderTemplate(w, testQuestionTemplate, struct {
-				chineseCharacter string
-				questionNumber   int
-				testID           string
-			}{chineseCharacter: chineseCharacter, questionNumber: currentQuestion, testID: sessionID})
+				ChineseCharacter string
+				QuestionNumber   int
+				TestID           string
+			}{ChineseCharacter: chineseCharacter, QuestionNumber: currentQuestion, TestID: sessionID})
 			return
 		}
 		// else they haven't
@@ -292,10 +293,11 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 		readOnlyDB.QueryRow("SELECT chineseCharacters FROM Word WHERE id = ?", wordID).Scan(&chineseCharacter)
 
 		context := struct {
-			chineseCharacter string
-			questionNumber   int
-			testID           string
-		}{chineseCharacter: chineseCharacter, questionNumber: currentQuestion, testID: sessionID}
+			ChineseCharacter string
+			QuestionNumber   int
+			TestID           string
+		}{ChineseCharacter: chineseCharacter, QuestionNumber: currentQuestion, TestID: sessionID}
+		fmt.Println("here3")
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodDelete:
 		path := strings.TrimPrefix(r.URL.Path, "/tests")
@@ -362,10 +364,10 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 		var chineseCharacter string
 		readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", testID, currentQuestion).Scan(&chineseCharacter)
 		context := struct {
-			chineseCharacter string
-			questionNumber   int
-			testID           string
-		}{chineseCharacter: chineseCharacter, questionNumber: currentQuestion}
+			ChineseCharacter string
+			QuestionNumber   int
+			TestID           string
+		}{ChineseCharacter: chineseCharacter, QuestionNumber: currentQuestion}
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodPatch:
 		userAnswer := r.FormValue("user-answer")
@@ -381,12 +383,12 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 		var chineseCharacter, correctPinyinAnswer string
 		readOnlyDB.QueryRow("SELECT chineseCharacters, pinyin FROM Words WHERE id = (SELECT wordID from Questions WHERE testID = ? AND questionNumber = ?)", testID, currentQuestion+1).Scan(&chineseCharacter, &correctPinyinAnswer)
 		context := struct {
-			chineseCharacter    string
-			correctPinyinAnswer string
-			userPinyinAnswer    string
-			testID              string
-			nextQuestionNumber  int
-		}{chineseCharacter: chineseCharacter, correctPinyinAnswer: correctPinyinAnswer, userPinyinAnswer: userAnswer, testID: testID, nextQuestionNumber: currentQuestion + 1}
+			ChineseCharacter    string
+			CorrectPinyinAnswer string
+			UserPinyinAnswer    string
+			TestID              string
+			NextQuestionNumber  int
+		}{ChineseCharacter: chineseCharacter, CorrectPinyinAnswer: correctPinyinAnswer, UserPinyinAnswer: userAnswer, TestID: testID, NextQuestionNumber: currentQuestion + 1}
 		renderTemplate(w, testSolutionTemplate, context)
 		return
 	}
