@@ -339,7 +339,7 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	testID := r.FormValue("test-id")
-	questionNumber := r.URL.Query().Get("questionNumber")
+	questionNumber := r.FormValue("question-number")
 	if sessionID != testID {
 		http.Error(w, "Test doesn't belong to user", http.StatusForbidden)
 		return
@@ -368,7 +368,7 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 		}{chineseCharacter: chineseCharacter, questionNumber: currentQuestion}
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodPatch:
-		userAnswer := r.URL.Query().Get("userAnswer")
+		userAnswer := r.FormValue("user-answer")
 		if userAnswer == "" {
 			http.Error(w, "Malformed Request to PATCH /question. userAnswer needs to be supplied.", http.StatusBadRequest)
 			return
