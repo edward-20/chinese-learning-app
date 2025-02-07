@@ -105,16 +105,16 @@ paths:
           $ref: "#/components/responses/SuccesfullyDeletedTest"
         '404':
           $ref: "#/components/responses/TestNotFound"
-  /tests/{testID}:
+  /tests/{test-id}:
     parameters:
       - $ref: "#/components/parameters/Session"
-      - name: testID
+      - name: test-id
         in: path
         required: true
         schema:
           type: string
     get:
-      summary: Get the test corresponding to this testID
+      summary: Get the test corresponding to this test-id
       parameters:
         - $ref: "#/components/parameters/Session"
       responses:
@@ -123,7 +123,7 @@ paths:
         '403':
           $ref: "#/components/responses/ForbiddenWriteToTest"
     delete:
-      summary: Deleting the test corresponding to this testID
+      summary: Deleting the test corresponding to this test-id
       responses:
         '200':
           $ref: "#/components/responses/SuccesfullyDeletedTest"
@@ -134,20 +134,20 @@ paths:
   /question:
     parameters:
       - $ref: "#/components/parameters/Session"
-      - name: testID
+      - name: test-id
         in: query
         required: true
         schema:
           type: string
         example: "2302"
-      - name: questionNumber
+      - name: question-number
         in: query
         required: true
         schema:
           type: integer
         example: "38"
     get:
-      summary: Get the question corresponding to testID and questionNumber
+      summary: Get the question corresponding to test-id and question-number
       responses:
         '200':
           description: Successfully got question
@@ -188,7 +188,7 @@ paths:
     patch:
       summary: Patch the answer to the question
       parameters:
-        - name: userAnswer
+        - name: user-answer
           in: query
           required: true
           schema:
