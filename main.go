@@ -368,7 +368,7 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 			ChineseCharacter string
 			QuestionNumber   int
 			TestID           string
-		}{ChineseCharacter: chineseCharacter, QuestionNumber: currentQuestion}
+		}{ChineseCharacter: chineseCharacter, QuestionNumber: currentQuestion, TestID: testID}
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodPatch:
 		userAnswer := r.FormValue("user-answer")
@@ -379,7 +379,10 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 		// update the question with the users input
 		readWriteDB.Exec("UPDATE Questions SET usersAnswer = ? WHERE testID = ? AND questionNumber = ?", testID, currentQuestion)
 		// update the current question in tests
-		readWriteDB.Exec("UPDATE Tests SET currentQuestion = currentQuestion + 1 WHERE id = ?", testID)
+		_, err = readWriteDB.Exec("UPDATE Tests SET currentQuestion = ? WHERE userSessionID = ?", currentQuestion, testID)
+		if err != nil {
+			// error handling function
+		}
 		// render a template telling them if they're correct or not
 		var chineseCharacter, correctPinyinAnswer string
 		readOnlyDB.QueryRow("SELECT chineseCharacters, pinyin FROM Words WHERE id = (SELECT wordID from Questions WHERE testID = ? AND questionNumber = ?)", testID, currentQuestion).Scan(&chineseCharacter, &correctPinyinAnswer)
