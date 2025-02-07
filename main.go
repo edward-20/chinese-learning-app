@@ -32,6 +32,10 @@ func renderTemplate(w http.ResponseWriter, temp *template.Template, data any) {
 	w.Header().Set("Content-Type", "text/html")
 	err := temp.ExecuteTemplate(w, "base.html", data)
 	if err != nil {
+		err = temp.Execute(w, data)
+		if err == nil {
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -218,11 +222,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			TestID           string
 		}{ChineseCharacter: chineseCharacter.String, QuestionNumber: 1, TestID: sessionID}
 		fmt.Println("here8")
-		w.Header().Set("Content-Type", "text/html")
-		err = testQuestionTemplate.Execute(w, context)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodGet:
 		path := strings.TrimPrefix(r.URL.Path, "/tests")
 		if path == "" {
