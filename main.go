@@ -382,7 +382,7 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 		readWriteDB.Exec("UPDATE Tests SET currentQuestion = currentQuestion + 1 WHERE id = ?", testID)
 		// render a template telling them if they're correct or not
 		var chineseCharacter, correctPinyinAnswer string
-		readOnlyDB.QueryRow("SELECT chineseCharacters, pinyin FROM Words WHERE id = (SELECT wordID from Questions WHERE testID = ? AND questionNumber = ?)", testID, currentQuestion+1).Scan(&chineseCharacter, &correctPinyinAnswer)
+		readOnlyDB.QueryRow("SELECT chineseCharacters, pinyin FROM Words WHERE id = (SELECT wordID from Questions WHERE testID = ? AND questionNumber = ?)", testID, currentQuestion).Scan(&chineseCharacter, &correctPinyinAnswer)
 		context := struct {
 			ChineseCharacter    string
 			CorrectPinyinAnswer string
