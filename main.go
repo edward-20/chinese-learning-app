@@ -223,7 +223,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 		}{ChineseCharacter: chineseCharacter.String, QuestionNumber: 1, TestID: sessionID}
 		renderTemplate(w, testQuestionTemplate, context)
 	case http.MethodGet:
-		path := strings.TrimPrefix(r.URL.Path, "/tests")
+		path := strings.TrimPrefix(r.URL.Path, "/tests/")
 		if path == "" {
 			// get the testID from the user
 			http.Error(w, "GET /tests has not been implemented", http.StatusNotFound)
@@ -239,13 +239,13 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 		// check that the user actually has a test
 		var currentQuestion int
 		var totalNumberOfQuestions int
-		err := readOnlyDB.QueryRow("SELECT currentQuestion, totalNumberOfQuestions FROM Tests WHERE userSessionID = ?)", path).Scan(&currentQuestion)
+		err := readOnlyDB.QueryRow("SELECT currentQuestion, totalNumberOfQuestions FROM Tests WHERE userSessionID = ?", path).Scan(&currentQuestion, &totalNumberOfQuestions)
 		if err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				http.Error(w, "The user doesn't have a test", http.StatusNotFound)
 				return
 			}
-			http.Error(w, "The user doesn't have a test in an unforseen way", http.StatusNotFound)
+			http.Error(w, "The user doesn't have a test in an unforseen way. "+err.Error(), http.StatusNotFound)
 			return
 		}
 
@@ -414,6 +414,7 @@ func main() {
 
 	// tests endpoints
 	http.HandleFunc("/tests", testsHandler)
+	http.HandleFunc("/tests/", testsHandler)
 
 	http.HandleFunc("/question", questionHandler)
 
