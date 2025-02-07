@@ -21,9 +21,9 @@ var aboutTemplate = template.Must(template.ParseFiles("templates/base.html", "te
 var contactTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/contact.html"))
 var startTestTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/test-start.html"))
 var resumeTestTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/test-resume.html"))
-var testQuestionTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/single-character-question.html"))
-var testSolutionTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/check-answer.html"))
-var testReviewTemplate = template.Must(template.ParseFiles("templates/base.html", "templates/review.html"))
+var testQuestionTemplate = template.Must(template.ParseFiles("templates/single-character-question.html"))
+var testSolutionTemplate = template.Must(template.ParseFiles("templates/check-answer.html"))
+var testReviewTemplate = template.Must(template.ParseFiles("templates/review.html"))
 
 var readWriteDB, readWriteDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000&_foreign_keys=on")
 var readOnlyDB, readOnlyDBConnectionErr = sql.Open("sqlite3", "./db/chinese-learning-database.db?_journal=WAL&busy_timeout=5000&mode=ro&_foreign_keys=on")
@@ -77,6 +77,7 @@ func doesUserHaveTest(sessionID string) bool {
 }
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/home")
 	sessionCookie, getCookieError := r.Cookie("session_id")
 
 	// the user has not visited the site before
@@ -116,14 +117,17 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func aboutHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/about")
 	renderTemplate(w, aboutTemplate, nil)
 }
 
 func contactHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/contact")
 	renderTemplate(w, contactTemplate, nil)
 }
 
 func testsHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/tests")
 	// is there a session cookie
 	sessionCookie, getCookieError := r.Cookie("session_id")
 	if getCookieError != nil {
@@ -139,46 +143,48 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodPost:
+		fmt.Println("POST /tests")
 		if doesUserHaveTest(sessionID) {
 			http.Error(w, "Method Not Allowed. User already has a test.", http.StatusMethodNotAllowed)
 			return
 		}
 
-		numQuestionsWanted := r.URL.Query().Get("number-of-questions")
+		numQuestionsWanted := r.FormValue("number-of-questions")
 		if numQuestionsWanted == "" {
 			http.Error(w, "Invalid Request to POST /tests, provide number of questions as query", http.StatusBadRequest)
 			return
 		}
 
+		fmt.Println("here2")
 		numQuestions, err := strconv.Atoi(numQuestionsWanted)
 		if err != nil {
 			http.Error(w, "Invalid Request to POST /tests, provide number of questions as integer query", http.StatusBadRequest)
 			return
 		}
 
-		if numQuestions > 0 || numQuestions > 500 {
+		fmt.Println("here3")
+		if numQuestions < 0 || numQuestions > 500 {
 			http.Error(w, "Invalid Request to POST /tests, provide number of questions in the query within the range of 1-500.", http.StatusBadRequest)
 			return
 		}
 
+		fmt.Println("here4")
 		// create a test
-		tx, err := readWriteDB.Begin()
-		if err != nil {
-			http.Error(w, "Could not begin transaction", http.StatusInternalServerError)
-			return
-		}
-		_, err = tx.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES (?, ?)", sessionID, numQuestions)
+		_, err = readWriteDB.Exec("INSERT INTO Tests (userSessionId, totalNumberOfQuestions) VALUES (?, ?)", sessionID, numQuestions)
 		if err != nil {
 			http.Error(w, "Could not execute INSERT to Tests in transaction", http.StatusInternalServerError)
-			tx.Rollback()
 			return
 		}
 
+		fmt.Println("here5")
 		// create the questions
+		tx, err := readWriteDB.Begin()
 		permutation := rand.Perm(500)
-		for questionNumber, randomNumber := range permutation {
+		for questionNumber, randomNumber := range permutation[:numQuestions] {
 			_, err = tx.Exec("INSERT INTO Questions (wordID, testID, questionNumber) VALUES (?, ?, ?)", randomNumber+1, sessionID, questionNumber+1)
 			if err != nil {
+				fmt.Println(questionNumber)
+				fmt.Println(err.Error())
 				http.Error(w, "Could not execute INSERT to Questions in transaction", http.StatusInternalServerError)
 				tx.Rollback()
 				return
@@ -189,6 +195,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Could not commit transaction.", http.StatusInternalServerError)
 		}
 
+		fmt.Println("here6")
 		var chineseCharacter sql.NullString
 		err = readOnlyDB.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", sessionID, 1).Scan(&chineseCharacter)
 		if err != nil {
@@ -204,13 +211,18 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		fmt.Println("here7")
 		context := struct {
-			chineseCharacter string
-			questionNumber   int
-			testID           string
-		}{chineseCharacter: chineseCharacter.String, questionNumber: 1, testID: sessionID}
-		renderTemplate(w, testQuestionTemplate, context)
-
+			ChineseCharacter string
+			QuestionNumber   int
+			TestID           string
+		}{ChineseCharacter: chineseCharacter.String, QuestionNumber: 1, TestID: sessionID}
+		fmt.Println("here8")
+		w.Header().Set("Content-Type", "text/html")
+		err = testQuestionTemplate.Execute(w, context)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	case http.MethodGet:
 		path := strings.TrimPrefix(r.URL.Path, "/tests")
 		if path == "" {
@@ -312,6 +324,7 @@ func testsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func questionHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("/questions")
 	// is there a session cookie
 	sessionCookie, getCookieError := r.Cookie("session_id")
 	if getCookieError != nil {
@@ -325,7 +338,7 @@ func questionHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	testID := r.URL.Query().Get("testID")
+	testID := r.FormValue("test-id")
 	questionNumber := r.URL.Query().Get("questionNumber")
 	if sessionID != testID {
 		http.Error(w, "Test doesn't belong to user", http.StatusForbidden)
