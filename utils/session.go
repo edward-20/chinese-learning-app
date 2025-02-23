@@ -28,7 +28,6 @@ func SetSessionCookie(w http.ResponseWriter, sessionID string) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_id",
 		Value:    sessionID,
-		Path:     "/",
 		HttpOnly: true,                                             // To prevent access from JavaScript
 		Secure:   false,                                            // Should be true if using HTTPS
 		Expires:  time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC), // Far future date
