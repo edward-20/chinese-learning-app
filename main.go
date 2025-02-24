@@ -19,7 +19,7 @@ func main() {
 	database.ReadOnlyDb.SetMaxOpenConns(8)
 	database.ReadWriteDb.SetMaxOpenConns(1)
 
-	fs := http.FileServer(http.Dir("../static"))
+	fs := http.FileServer(http.Dir("./static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	// pages
