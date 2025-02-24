@@ -3,4 +3,5 @@ node_modules/
 static/index.css
 db/*.db*
 notes.md
+**/.env.*
 **/.env

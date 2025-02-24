@@ -14,6 +14,8 @@ const (
 )
 
 func TestFirstRequestToHome(t *testing.T) {
+	t.Setenv("MODE", "testing")
+	t.Setenv("DB_FILE_PREFIX", "../db/chinese-learning-database")
 	request := httptest.NewRequest(http.MethodGet, TEST_URL, nil)
 	writer := httptest.NewRecorder()
 	handler.HomeHandler(writer, request)
