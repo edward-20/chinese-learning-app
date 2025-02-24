@@ -36,7 +36,6 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 	if !utils.IsUserRegisteredInDatabase(sessionID) {
 		_, err := database.ReadWriteDb.Exec("INSERT INTO Users (sessionID) VALUES (?)", sessionID)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
 			http.Error(w, "Could not create user in database", 500)
 			return
 		}
