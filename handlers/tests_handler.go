@@ -99,6 +99,7 @@ func TestsHandler(w http.ResponseWriter, r *http.Request) {
 			QuestionNumber   int
 			TestID           string
 		}{ChineseCharacter: chineseCharacter.String, QuestionNumber: 1, TestID: sessionID}
+		w.WriteHeader(http.StatusCreated)
 		utils.RenderTemplate(w, templates.TestQuestionTemplate, context)
 	case http.MethodGet:
 		path := strings.TrimPrefix(r.URL.Path, "/tests/")
@@ -143,6 +144,7 @@ func TestsHandler(w http.ResponseWriter, r *http.Request) {
 					http.Error(w, "Score could not be obtained", http.StatusInternalServerError)
 				}
 				fmt.Println("here1")
+				w.WriteHeader(http.StatusAccepted)
 				utils.RenderTemplate(w, templates.TestReviewTemplate, struct {
 					Score                  int
 					TotalNumberOfQuestions int
@@ -159,6 +161,7 @@ func TestsHandler(w http.ResponseWriter, r *http.Request) {
 			var chineseCharacter string
 			err = database.ReadOnlyDb.QueryRow("SELECT chineseCharacters FROM Words WHERE id = (SELECT wordID FROM Questions WHERE testID = ? AND questionNumber = ?)", sessionID, currentQuestion).Scan(&chineseCharacter)
 			fmt.Println("here2")
+			w.WriteHeader(http.StatusAccepted)
 			utils.RenderTemplate(w, templates.TestQuestionTemplate, struct {
 				ChineseCharacter string
 				QuestionNumber   int
@@ -177,6 +180,7 @@ func TestsHandler(w http.ResponseWriter, r *http.Request) {
 			TestID           string
 		}{ChineseCharacter: chineseCharacter, QuestionNumber: currentQuestion, TestID: sessionID}
 		fmt.Println("here3")
+		w.WriteHeader(http.StatusAccepted)
 		utils.RenderTemplate(w, templates.TestQuestionTemplate, context)
 	case http.MethodDelete:
 		path := strings.TrimPrefix(r.URL.Path, "/tests")
@@ -197,6 +201,8 @@ func TestsHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, "Unable to delete test", http.StatusInternalServerError)
 		}
+
+		w.WriteHeader(http.StatusAccepted)
 		utils.RenderTemplate(w, templates.StartTestTemplate, nil)
 	default:
 		http.Error(w, "/tests does not have implementation for methods outside of GET DELETE and POST", http.StatusNotFound)
