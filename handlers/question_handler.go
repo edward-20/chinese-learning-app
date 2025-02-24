@@ -61,11 +61,16 @@ func QuestionHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// update the question with the users input
-		database.ReadWriteDb.Exec("UPDATE Questions SET usersAnswer = ? WHERE testID = ? AND questionNumber = ?", testID, currentQuestion)
-		// update the current question in tests
-		_, err = database.ReadWriteDb.Exec("UPDATE Tests SET currentQuestion = ? WHERE userSessionID = ?", currentQuestion, testID)
+		_, err := database.ReadWriteDb.Exec("UPDATE Questions SET usersAnswer = ? WHERE testID = ? AND questionNumber = ?", userAnswer, testID, currentQuestion)
 		if err != nil {
 			// error handling function
+			http.Error(w, "Could not update Questions table", http.StatusInternalServerError)
+		}
+		// update the current question in tests
+		_, err = database.ReadWriteDb.Exec("UPDATE Tests SET currentQuestion = ? WHERE userSessionID = ?", currentQuestion+1, testID)
+		if err != nil {
+			// error handling function
+			http.Error(w, "Could not update Tests table", http.StatusInternalServerError)
 		}
 		// render a template telling them if they're correct or not
 		var chineseCharacter, correctPinyinAnswer string
