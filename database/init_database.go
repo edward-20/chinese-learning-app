@@ -54,10 +54,30 @@ func init() {
 		if err != nil {
 			log.Fatal("Error creating database file")
 		}
+	} else {
+		if mode == "test" {
+			removeDatabaseError := os.Remove(dbFilePath)
+			removeSharedMemoryError := os.Remove(dbFilePath + "-shm")
+			removeWalError := os.Remove(dbFilePath + "-wal")
+			if removeDatabaseError != nil {
+				log.Fatal("Could not remove old test database")
+			}
+			if removeSharedMemoryError != nil {
+				log.Fatal("Could not remove old test shared memory")
+			}
+			if removeWalError != nil {
+				log.Fatal("Could not remove old test wal")
+			}
+		}
+		_, err := os.Create(dbFilePath)
+		if err != nil {
+			log.Fatal("Error creating database file")
+		}
 	}
+	// at this point the file must exist but if fileDoesntExistError that means its just created without being intialised
 
 	ReadWriteDb, ReadWriteDbConnectionErr = sql.Open("sqlite3", dbFilePath+"?_journal=wal&busy_timeout=5000&_foreign_keys=on")
-	if fileDoesntExistErr != nil {
+	if fileDoesntExistErr != nil || mode == "test" {
 		// if the database file didn't exist initialise it
 		initScript1, err := os.ReadFile(dbDir + "001_initial_schema.sql")
 		if err != nil {
