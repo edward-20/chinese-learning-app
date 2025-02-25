@@ -15,6 +15,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 
 	// the user has not visited the site before
 	if getCookieError != nil {
+		fmt.Println("here1")
 		sessionID, randomGenerationError := utils.GenerateSessionID()
 		if randomGenerationError != nil {
 			http.Error(w, randomGenerationError.Error(), http.StatusInternalServerError)
@@ -22,6 +23,7 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		dbError := utils.AddUserSession(sessionID)
 		if dbError != nil {
+			fmt.Println("here1.5")
 			http.Error(w, dbError.Error(), http.StatusInternalServerError)
 			return
 		}
@@ -31,12 +33,13 @@ func HomeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Println("here2")
 	// the user has visited the site before
 	sessionID := sessionCookie.Value
 	if !utils.IsUserRegisteredInDatabase(sessionID) {
 		_, err := database.ReadWriteDb.Exec("INSERT INTO Users (sessionID) VALUES (?)", sessionID)
 		if err != nil {
-			http.Error(w, "Could not create user in database", 500)
+			http.Error(w, "Could not create user in database"+err.Error(), 500)
 			return
 		}
 	}

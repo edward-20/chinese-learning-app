@@ -47,7 +47,7 @@ paths:
           example: 50
       responses:
         '201':
-          description: Successfully created test
+          description: Successfully created test. Respond with first question.
           content:
             text/html:
               schema:
@@ -302,7 +302,7 @@ components:
               <button hx-post"/tests">Create a new test?</button>
             </div>
     SuccesfullyGotTest:
-      description: Current test for user
+      description: Current test for user. Either the question they're currently on, or their test review.
       content:
         text/html:
           schema:

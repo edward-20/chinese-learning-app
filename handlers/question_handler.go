@@ -66,12 +66,28 @@ func QuestionHandler(w http.ResponseWriter, r *http.Request) {
 			// error handling function
 			http.Error(w, "Could not update Questions table", http.StatusInternalServerError)
 		}
-		// update the current question in tests
-		_, err = database.ReadWriteDb.Exec("UPDATE Tests SET currentQuestion = ? WHERE userSessionID = ?", currentQuestion+1, testID)
+		// update the current question in tests (two cases):
+		// they just answered the last question
+		// they didn't
+		var totalNumberOfQuestions int
+		err = database.ReadOnlyDb.QueryRow("SELECT totalNumberOfQuestions FROM Tests WHERE userSessionID = ?", testID).Scan(&totalNumberOfQuestions)
 		if err != nil {
-			// error handling function
-			http.Error(w, "Could not update Tests table", http.StatusInternalServerError)
+			http.Error(w, "Could not read Tests table", http.StatusInternalServerError)
 		}
+
+		var isFinishingTest bool
+		if currentQuestion == totalNumberOfQuestions {
+			// then don't increment the current question and render a TestSolution template which has hx-get test-review
+			isFinishingTest = true
+		} else {
+			_, err = database.ReadWriteDb.Exec("UPDATE Tests SET currentQuestion = ? WHERE userSessionID = ?", currentQuestion+1, testID)
+			if err != nil {
+				// error handling function
+				http.Error(w, "Could not update Tests table", http.StatusInternalServerError)
+			}
+			isFinishingTest = false
+		}
+
 		// render a template telling them if they're correct or not
 		var chineseCharacter, correctPinyinAnswer string
 		database.ReadOnlyDb.QueryRow("SELECT chineseCharacters, pinyin FROM Words WHERE id = (SELECT wordID from Questions WHERE testID = ? AND questionNumber = ?)", testID, currentQuestion).Scan(&chineseCharacter, &correctPinyinAnswer)
@@ -81,7 +97,8 @@ func QuestionHandler(w http.ResponseWriter, r *http.Request) {
 			UserPinyinAnswer    string
 			TestID              string
 			NextQuestionNumber  int
-		}{ChineseCharacter: chineseCharacter, CorrectPinyinAnswer: correctPinyinAnswer, UserPinyinAnswer: userAnswer, TestID: testID, NextQuestionNumber: currentQuestion + 1}
+			End                 bool
+		}{ChineseCharacter: chineseCharacter, CorrectPinyinAnswer: correctPinyinAnswer, UserPinyinAnswer: userAnswer, TestID: testID, NextQuestionNumber: currentQuestion + 1, End: isFinishingTest}
 		utils.RenderTemplate(w, templates.TestSolutionTemplate, context)
 		return
 	}
